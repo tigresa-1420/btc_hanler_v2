@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Customer {
+  customer_id                Int                     @id @default(autoincrement())
+  name                       String?                 @db.Char(100)
+  transaction_fee            Decimal?                @db.Decimal
+  customer_wallet_address_id Int
+  created_at                 DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?               @default(now()) @db.Timestamptz(6)
+  Customer_wallet_address    Customer_wallet_address @relation(fields: [customer_wallet_address_id], references: [customer_wallet_address_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_customer_customer_wallet_addrees")
+  Order                      Order[]
+}
+
+model Customer_wallet_address {
+  customer_wallet_address_id Int                    @id @default(autoincrement())
+  address                    String?                @db.Char(100)
+  created_at                 DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?              @default(now()) @db.Timestamptz(6)
+  wallet_address_status_id   Int?
+  Customer                   Customer[]
+  Wallet_address_status      Wallet_address_status? @relation(fields: [wallet_address_status_id], references: [wallet_address_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_customer_wallet_address")
+  Payment_attempt            Payment_attempt[]
+}
+
+model Order {
+  order_id        Int               @id @default(autoincrement())
+  order_status_id Int
+  customer_id     Int
+  external_ref    String?
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  Customer        Customer          @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_customer")
+  Order_status    Order_status      @relation(fields: [order_status_id], references: [order_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_order_status")
+  Payment_attempt Payment_attempt[]
+  Payment_request Payment_request[]
+}
+
+model Order_status {
+  order_status_id Int       @id @default(autoincrement())
+  status          String?   @db.Char(50)
+  description     String?   @db.Char(100)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @default(now()) @db.Timestamptz(6)
+  Order           Order[]
+}
+
+model Payment_attempt {
+  payment_attempt_id         Int                      @id @default(autoincrement())
+  payment_status_id          Int?
+  payment_method_id          Int?
+  order_id                   Int?
+  network_fee                Decimal?                 @db.Decimal
+  layer_1_address            String?
+  invoice_address            String?
+  amount_sats                Decimal?                 @db.Decimal
+  metadata                   String?
+  blocks_confirmed           Int?
+  customer_wallet_address_id Int?
+  payment_preference_id      Int?
+  created_at                 DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?                @default(now()) @db.Timestamptz(6)
+  confirmed_at               DateTime?                @default(now()) @db.Timestamptz(6)
+  Order                      Order?                   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attemp_order")
+  Payment_preference         Payment_preference?      @relation(fields: [payment_preference_id], references: [payment_preference_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attemp_payment_preference")
+  Customer_wallet_address    Customer_wallet_address? @relation(fields: [customer_wallet_address_id], references: [customer_wallet_address_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_customer_wallet")
+  Payment_method             Payment_method?          @relation(fields: [payment_method_id], references: [payment_method_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_method")
+  Payment_status             Payment_status?          @relation(fields: [payment_status_id], references: [payment_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_satus")
+  Payment_request            Payment_request[]
+}
+
+model Payment_method {
+  payment_method_id Int               @id @default(autoincrement())
+  name              String?           @db.Char(100)
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  Payment_attempt   Payment_attempt[]
+}
+
+model Payment_preference {
+  payment_preference_id Int               @id @default(autoincrement())
+  invoice_life_time     Int
+  invoice_max_attempt   Int
+  created_at            DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?         @default(now()) @db.Timestamptz(6)
+  Payment_attempt       Payment_attempt[]
+}
+
+model Payment_request {
+  payment_request_id   Int              @id @default(autoincrement())
+  order_id             Int
+  payment_status_id    Int
+  succeeded_payment_id Int?
+  amount_fiat          Decimal?         @db.Decimal
+  local_currency_id    Int?
+  user_transaction_ref String?
+  created_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  Currency             Currencies?      @relation(fields: [local_currency_id], references: [currency_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_currency")
+  Payment_attempt      Payment_attempt? @relation(fields: [succeeded_payment_id], references: [payment_attempt_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_payment_attemp")
+  Payment_status       Payment_status   @relation(fields: [payment_status_id], references: [payment_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_payment_satus")
+  Order                Order            @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_paymnet_request_order")
+}
+
+model Payment_status {
+  payment_status_id Int               @id @default(autoincrement())
+  status            String?           @db.Char(50)
+  description       String?
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  Payment_attempt   Payment_attempt[]
+  Payment_request   Payment_request[]
+}
+
+model Wallet_address_status {
+  wallet_address_status_id Int                       @id @default(autoincrement())
+  status                   String?                   @db.VarChar(50)
+  description              String?                   @db.VarChar(100)
+  created_at               DateTime?                 @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?                 @default(now()) @db.Timestamptz(6)
+  Customer_wallet_address  Customer_wallet_address[]
+}
+
+model Currencies {
+  currency_id     Int               @id(map: "Currency_pkey") @default(autoincrement())
+  name            String            @db.VarChar(100)
+  country         String?           @db.VarChar(100)
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  code            String            @unique(map: "Currency_code_key") @db.Char(3)
+  symbol          String?           @db.VarChar(10)
+  Payment_request Payment_request[]
+}
