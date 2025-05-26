@@ -1,8 +1,8 @@
-// src/context/OrderContext.tsx
 import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 
@@ -55,12 +55,36 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
-  const [order, setOrder] = useState<Order | null>(null);
-  const [invoice, setInvoice] = useState<PaymentAttemptResponse | null>(null);
+  const [order, setOrderState] = useState<Order | null>(null);
+  const [invoice, setInvoiceState] = useState<PaymentAttemptResponse | null>(
+    null
+  );
+
+  // Al montar, recupera desde localStorage
+  useEffect(() => {
+    const storedOrder = localStorage.getItem("order");
+    const storedInvoice = localStorage.getItem("invoice");
+
+    if (storedOrder) setOrderState(JSON.parse(storedOrder));
+    if (storedInvoice) setInvoiceState(JSON.parse(storedInvoice));
+  }, []);
+
+  // Guarda en localStorage cada vez que se actualiza
+  const setOrder = (order: Order) => {
+    localStorage.setItem("order", JSON.stringify(order));
+    setOrderState(order);
+  };
+
+  const setInvoice = (invoice: PaymentAttemptResponse) => {
+    localStorage.setItem("invoice", JSON.stringify(invoice));
+    setInvoiceState(invoice);
+  };
 
   const reset = () => {
-    setOrder(null);
-    setInvoice(null);
+    localStorage.removeItem("order");
+    localStorage.removeItem("invoice");
+    setOrderState(null);
+    setInvoiceState(null);
   };
 
   return (
@@ -72,7 +96,6 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Hook personalizado
 export const useOrder = () => {
   const context = useContext(OrderContext);
   if (!context) {

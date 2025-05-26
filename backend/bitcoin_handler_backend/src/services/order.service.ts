@@ -59,14 +59,14 @@ export const update_confirmed_order_payment_flow_by_id = async (
 
     await tx.order.update({
       where: { order_id },
-      data: { order_status_id: 2 },
+      data: { order_status_id: 3 },
     });
 
     //update payment_request
     await tx.payment_request.updateMany({
       where: { order_id },
       data: {
-        payment_status_id: 2,
+        payment_status_id: 3,
         succeeded_payment_id,
         updated_at: new Date(),
       },
@@ -76,7 +76,7 @@ export const update_confirmed_order_payment_flow_by_id = async (
       where: { order_id },
       data: {
         blocks_confirmed: 6,
-        payment_status_id: 2,
+        layer_1_address: "data:address",
         updated_at: new Date(),
         confirmed_at: new Date(),
       },
@@ -84,4 +84,4 @@ export const update_confirmed_order_payment_flow_by_id = async (
     return { message: "Actualización completada exitosamente" };
   });
 };
-
+  

@@ -1,22 +1,48 @@
-import React from "react";
 import { Card, CardContent } from "../components/ui/card";
-import { Clock } from "lucide-react";
+import { CircleCheck, Clock } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
-
+import { useOrder } from "src/context/invoiceContext";
+import axiosInstance from "src/api/axios";
+import React from "react";
 import ClipboardButton from "~/components/buttons/ClipboardButton";
-const info = {
-  id: "asdfghjkl",
-  network: "OnChain",
-  address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-  amountBTC: "0.0032",
-  feeBTC: "0.0001",
-  totalBTC: "0.0033",
-  totalUSD: "$0.10",
-  date: "2023-10-01 12:00:00",
-  sats: "0.0000031 Sats",
-};
+
 export default function BitcoinPaymentWaiting() {
+  const { invoice, setInvoice } = useOrder();
+  React.useEffect(() => {
+    if (!invoice) return;
+
+    axiosInstance
+      .get("/payment-attempts/" + invoice.paymentAttempt.payment_attempt_id)
+      .then((response) => {
+        if (response.status === 200) {
+          setInvoice(response.data);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching invoice:", error);
+      });
+  }, [invoice?.paymentAttempt.payment_attempt_id]); // depende de que esté disponible
+
+  const info = {
+    id: invoice?.paymentAttempt.payment_attempt_id,
+    network: "Bitcoin OnChain",
+    address: invoice?.wallet_address,
+    amountBTC: invoice?.paymentAttempt.amount_sats,
+    feeBTC: invoice?.paymentAttempt.network_fee,
+    totalBTC:
+      invoice?.paymentAttempt.amount_sats! +
+      invoice?.paymentAttempt.network_fee! +
+      " BTC",
+    totalUSD:
+      invoice?.amount_info.Currency.symbol + invoice?.amount_info.amount_fiat!,
+    date: invoice?.paymentAttempt.created_at,
+    sats:
+      invoice?.paymentAttempt.amount_sats! +
+      invoice?.paymentAttempt.network_fee! +
+      "Sats",
+    txid: invoice?.paymentAttempt.layer_1_address,
+  };
   return (
     <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
       <div className="bg-white text-black rounded-2xl max-w-3xl w-full shadow-lg">
@@ -24,10 +50,17 @@ export default function BitcoinPaymentWaiting() {
           <Card className="bg-gray-100 p-6">
             <CardContent className="p-0">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center gap-2 text-2xl font-semibold">
-                  <Clock className="w-6 h-6" />
-                  Procesando transacción
-                </div>
+                {invoice?.paymentAttempt.payment_status_id == 2 ? (
+                  <div className="flex items-center gap-2 text-2xl font-semibold">
+                    <Clock className="w-6 h-6" />
+                    Procesando transacción
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-2xl font-semibold">
+                    <CircleCheck className="w-5 h-5" />
+                    Transacción procesada
+                  </div>
+                )}
                 <p className="text-sm text-gray-600 mt-1 mb-4">
                   Puede entre
                   <span className="font-medium">10 a 60 minutos</span>
@@ -79,16 +112,28 @@ export default function BitcoinPaymentWaiting() {
                 </div>
               </div>
             </CardContent>
-            <Link to="/btc/succeed_payment">
-              <Button
-                variant="outline"
-                size="sm"
-                color="green"
-                className="mt-4"
-              >
-                Procesar pago
-              </Button>
-            </Link>
+
+            <Button
+              variant="outline"
+              size="sm"
+              color="green"
+              className="mt-4"
+              onClick={async () => {
+                await axiosInstance.put("/payment-attempts", {
+                  payment_attempt_id:
+                    invoice?.paymentAttempt.payment_attempt_id,
+                  payment_status_id: 3, // Cambiar a "pagado"
+                });
+
+                await axiosInstance.put("/orders", {
+                  order_id: invoice?.paymentAttempt.order_id,
+                  succeeded_payment_id:
+                    invoice?.paymentAttempt.payment_attempt_id,
+                });
+              }}
+            >
+              Procesar pago
+            </Button>
           </Card>
         </div>
       </div>

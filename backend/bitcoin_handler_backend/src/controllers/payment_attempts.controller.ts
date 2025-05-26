@@ -40,7 +40,12 @@ export const get_payment_attempt_by_id_controller = async (
   res: Response
 ) => {
   try {
-    const payment_attempt = await get_payment_attempt_by_id(req.params.id);
+    const payment_attempt_id = Number(req.params.id);
+
+    const payment_attempt = await get_payment_attempt_by_id({
+      payment_attempt_id,
+    });
+
     res.status(200).json(payment_attempt);
   } catch (error) {
     console.error("Error al obtener el intento de pago:", error);

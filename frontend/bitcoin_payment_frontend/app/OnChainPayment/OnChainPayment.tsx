@@ -1,8 +1,9 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
 import { Link } from "react-router";
 import CopyButton from "~/components/buttons/CopyButton";
 import { useOrder } from "src/context/invoiceContext";
+import { useNavigate } from "react-router";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,9 +15,14 @@ import {
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import axiosInstance from "src/api/axios";
+import axios from "axios";
+import { json } from "stream/consumers";
 
 export function OnChainPaymentView() {
+  const [btcPrice, setBtcPrice] = useState([]);
+ 
   const { reset, order, invoice, setInvoice } = useOrder();
+  const navigate = useNavigate();
 
   const [timer, setTimer] = useState(
     invoice!.paymentPreference.invoice_life_time - 291
@@ -28,15 +34,22 @@ export function OnChainPaymentView() {
 
   // Simulate a countdown timer
   React.useEffect(() => {
-    console.log("render");
+    console.log(invoice);
     const interval = setInterval(() => {
       setTimer((prev: any) => {
         if (prev <= 0) {
           clearInterval(interval);
           return 0;
         }
-        if (prev === 1) {
-          setIsOpen(true);
+        if (prev === "as") {
+          console.log("Time is up!");
+          //expired
+          handle_update_status(
+            invoice!.paymentAttempt.payment_attempt_id,
+            4 // Assuming 3 is the ID for "expired" status
+          ).then(() => {
+            setIsOpen(true);
+          });
         }
         return prev - 1;
       });
@@ -69,6 +82,16 @@ export function OnChainPaymentView() {
     address: invoice!.wallet_address,
     currency_code: invoice!.amount_info.Currency.code,
     sats: invoice!.paymentAttempt.amount_sats + " Sats",
+  };
+
+  const handle_update_status = async (
+    payment_attempt_id: number,
+    payment_status_id: number
+  ) => {
+    await axiosInstance.put(`/payment-attempts/`, {
+      payment_attempt_id,
+      payment_status_id,
+    });
   };
 
   return (
@@ -142,6 +165,7 @@ export function OnChainPaymentView() {
             <p className="text-center text-xs text-gray-600 mt-2 whitespace-pre-line">
               {onchain.note}
             </p>
+            <BitcoinSummary />
           </div>
         </div>
         <AlertDialog open={open}>
@@ -195,11 +219,69 @@ export function OnChainPaymentView() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <Link to="/btc/waiting_payment">
-          <Button variant="outline" size="sm" color="green" className="mt-4">
-            Empezar verificacion de pago
-          </Button>
-        </Link>
+
+        <Button
+          variant="outline"
+          size="sm"
+          color="green"
+          className="mt-4"
+          onClick={async () => {
+            await handle_update_status(
+              invoice!.paymentAttempt.payment_attempt_id,
+              2 // Assuming 2 is the ID for "in progress" status
+            );
+
+            axiosInstance
+              .get(
+                `/payment-attempts/${
+                  invoice!.paymentAttempt.payment_attempt_id
+                }`
+              )
+              .then((res) => {
+                setInvoice(res.data);
+                navigate("/btc/waiting_payment");
+              });
+          }}
+        >
+          Empezar verificación de pago
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function BitcoinSummary() {
+  return (
+    <div className="bg-gray-100  w-full max-w-2xl p-6">
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">
+              Bitcoin <span className=" text-sm">(BTC)</span>
+            </h2>
+            <p className="text-3xl font-bold">
+              $109,444.42{" "}
+              <span className="text-green-400 text-lg ml-2">+2.04%</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
+          <div className="space-y-1">
+            <p className="text-gray-900">Market Cap</p>
+            <p className=" text-gray-900 font-semibold">$2,174.68B</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-gray-900">Volume (24h)</p>
+            <p className="text-gray-900 font-semibold">$46.71B</p>
+          </div>
+          <div className="space-y-1 col-span-2">
+            <p className="text-gray-900">BTC/USDT</p>
+            <p className="text-gray-900 font-semibold">
+              $109,363.63 <span className="text-green-400 ml-2">+1.93%</span>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

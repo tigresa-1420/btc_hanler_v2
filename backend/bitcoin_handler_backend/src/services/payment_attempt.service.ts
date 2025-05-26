@@ -20,20 +20,6 @@ export const create_new_payment_attempt_service = async (
   const DEFAULT_PAYMENT_PREFERENCE_ID = 1;
 
   return await prisma.$transaction(async (tx: any) => {
-    // Expira el último intento
-    const lastPaymentAttempt = await tx.payment_attempt.findFirst({
-      where: { order_id: input.order_id },
-      orderBy: { created_at: "desc" },
-      select: { payment_attempt_id: true },
-    });
-
-    if (lastPaymentAttempt) {
-      await tx.payment_attempt.update({
-        where: { payment_attempt_id: lastPaymentAttempt.payment_attempt_id },
-        data: { payment_status_id: EXPIRED_PAYMENT_STATUS_ID },
-      });
-    }
-
     // Busca el wallet válido
     const order = await tx.order.findUnique({
       where: { order_id: input.order_id },
@@ -112,16 +98,8 @@ enum Status {
 // Transiciones válidas por tipo de método de pago
 const allowedTransitionsByMethod: Record<number, Record<Status, Status[]>> = {
   1: {
-    // Método 1: puede saltar a Completed
     [Status.Pending]: [Status.Processing, Status.Expired],
     [Status.Processing]: [Status.Completed],
-    [Status.Completed]: [],
-    [Status.Expired]: [],
-  },
-  2: {
-    // Método 2: debe pasar por Processing antes de Completed
-    [Status.Pending]: [Status.Completed, Status.Expired],
-    [Status.Processing]: [],
     [Status.Completed]: [],
     [Status.Expired]: [],
   },
@@ -195,63 +173,74 @@ export const update_payment_attempt_status = async (
 };
 
 interface Get_payment_attempt_by_id_input {
-  payment_attempt_id: any;
+  payment_attempt_id: number;
 }
+
 export const get_payment_attempt_by_id = async (
   input: Get_payment_attempt_by_id_input
 ) => {
   const { payment_attempt_id } = input;
 
-  return prisma.$transaction(async (tx) => {
-    //get order by payment_attempt_id
+  return await prisma.$transaction(async (tx) => {
     const paymentAttempt = await tx.payment_attempt.findUnique({
       where: { payment_attempt_id },
       select: {
         payment_attempt_id: true,
-        order_id: true,
+        payment_status_id: true,
         payment_method_id: true,
+        order_id: true,
         network_fee: true,
         layer_1_address: true,
         invoice_address: true,
         amount_sats: true,
         metadata: true,
+        blocks_confirmed: true,
+        customer_wallet_address_id: true,
+        payment_preference_id: true,
         created_at: true,
         updated_at: true,
-        Customer_wallet_address: {
+        confirmed_at: true,
+      },
+    });
+
+    if (!paymentAttempt) return null;
+
+    const paymentPreference = await tx.payment_preference.findUnique({
+      where: { payment_preference_id: paymentAttempt.payment_preference_id! },
+      select: {
+        invoice_life_time: true,
+        invoice_max_attempt: true,
+      },
+    });
+
+    const customerWalletAddress = await tx.customer_wallet_address.findUnique({
+      where: {
+        customer_wallet_address_id: paymentAttempt.customer_wallet_address_id!,
+      },
+      select: {
+        address: true,
+      },
+    });
+    const payment_request = await tx.payment_request.findFirst({
+      where: { order_id: paymentAttempt.order_id! },
+      select: {
+        amount_fiat: true,
+        Currency: {
           select: {
-            customer_wallet_address_id: true,
-            address: true,
-          },
-        },
-        Payment_method: {
-          select: {
-            payment_method_id: true,
             name: true,
-          },
-        },
-        Order: {
-          select: {
-            order_id: true,
-            customer_id: true,
-            order_status_id: true,
-          },
-        },
-        Payment_request: {
-          select: {
-            payment_request_id: true,
-            payment_status_id: true,
-            amount_fiat: true,
-            Currency: {
-              select: {
-                name: true,
-                code: true,
-                symbol: true,
-                country: true,
-              },
-            },
+            code: true,
+            symbol: true,
+            country: true,
           },
         },
       },
     });
+
+    return {
+      paymentAttempt,
+      paymentPreference: paymentPreference,
+      wallet_address: customerWalletAddress?.address,
+      amount_info: payment_request,
+    };
   });
 };
