@@ -1,13 +1,18 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, redirect, useNavigate } from "react-router";
 import { useOrder } from "src/context/invoiceContext";
 import axiosInstance from "src/api/axios";
 
 export function BitcoinPaymentButton() {
+  useEffect(() => {
+    // This effect runs only once when the component mounts
+    console.log("BitcoinPaymentButton mounted");
+  }, []);
   const [isHovered, setIsHovered] = React.useState(false);
   const navigate = useNavigate();
   const { setOrder, setInvoice } = useOrder();
   const handler_create_order = async () => {
+    navigate("/btc/payment");
     const response = await axiosInstance.post("/orders", {
       customer_id: 1,
       external_ref: "123456789",
@@ -36,9 +41,10 @@ export function BitcoinPaymentButton() {
       network_fee: 1.1836037168514635,
       local_currency_id: 1,
     });
+    console.log(response.status);
     if (response.status === 201) {
       setInvoice(response.data);
-
+      console.log("should redirect to payment");
       navigate("/btc/payment");
     }
   };

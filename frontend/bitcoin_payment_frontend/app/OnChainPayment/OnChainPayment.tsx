@@ -1,71 +1,45 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
-import { Link } from "react-router";
 import CopyButton from "~/components/buttons/CopyButton";
 import { useOrder } from "src/context/invoiceContext";
 import { useNavigate } from "react-router";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
 import axiosInstance from "src/api/axios";
-import axios from "axios";
-import { json } from "stream/consumers";
+import BitcoinSummary from "~/BitcoinSummaryCard/BitcoinSummary";
+import TimeoutDialog from "~/TimeoutDialog/TimeoutDialog";
+import { useCountdown } from "src/hook/useCountdown";
 
 export function OnChainPaymentView() {
-  const [btcPrice, setBtcPrice] = useState([]);
- 
-  const { reset, order, invoice, setInvoice } = useOrder();
+  useEffect(() => {
+    if (!isActive) {
+      start();
+    }
+  }, []);
+  const { order, invoice, setInvoice, bitcoinPrice } = useOrder();
   const navigate = useNavigate();
 
-  const [timer, setTimer] = useState(
-    invoice!.paymentPreference.invoice_life_time - 291
-  );
-  const [open, setIsOpen] = useState(false);
-  const [maxAttempt, setMaxAttempt] = useState(
-    invoice?.paymentPreference.invoice_max_attempt
-  );
+  const [open, setOpen] = useState(false);
+  const maxAttempt = 3;
+  const [attempt, setAttempt] = useState(0);
+  const { remaining, start, reset, isActive } = useCountdown({
+    key: "onChainPaymentCountdown",
+    duration: 10,
+    onExpire: () => {
+      setAttempt((prev) => prev + 1);
+    },
+  });
+  useEffect(() => {
+    console.log("btc price ", bitcoinPrice?.price_usd);
+    if (attempt === maxAttempt) {
+      console.log("Max attempts reached, opening timeout dialog");
+      setOpen(true);
+    } else {
+      reset();
+    }
+  }, [attempt]);
 
-  // Simulate a countdown timer
-  React.useEffect(() => {
-    console.log(invoice);
-    const interval = setInterval(() => {
-      setTimer((prev: any) => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        if (prev === "as") {
-          console.log("Time is up!");
-          //expired
-          handle_update_status(
-            invoice!.paymentAttempt.payment_attempt_id,
-            4 // Assuming 3 is the ID for "expired" status
-          ).then(() => {
-            setIsOpen(true);
-          });
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timer]);
-
-  function satsToBtc(sats: number): string {
-    return (sats / 100000).toFixed(8);
-  }
-  const handle_get_total = (sats: number, fee: number) => {
-    const total = sats + fee;
-    return total;
-  };
-  const onchain = {
+  {
+    /**
+    const onchain2 = {
     network: "Bitcoin OnChain",
     currency:
       invoice?.amount_info.Currency.symbol + invoice?.amount_info.amount_fiat!,
@@ -82,6 +56,21 @@ export function OnChainPaymentView() {
     address: invoice!.wallet_address,
     currency_code: invoice!.amount_info.Currency.code,
     sats: invoice!.paymentAttempt.amount_sats + " Sats",
+  }; */
+  }
+
+  const onchain = {
+    network: "Bitcoin OnChain",
+    currency: "",
+    btc: " BTC",
+    fee: " BTC",
+    total: " BTC",
+    note: "Puede tardar 10 a 60 min en ser confirmado",
+    timer: "Expira en " + remaining + " segundos",
+    attempt: attempt + "/" + maxAttempt,
+    address: "",
+    currency_code: "",
+    sats: " Sats",
   };
 
   const handle_update_status = async (
@@ -103,6 +92,7 @@ export function OnChainPaymentView() {
             <h3 className="text-center font-medium mb-2">
               Escanea el QR o copia la dirección
             </h3>
+
             <img
               src="https://pngimg.com/uploads/qr_code/qr_code_PNG10.png"
               alt="QR"
@@ -134,7 +124,7 @@ export function OnChainPaymentView() {
             </h3>
             <div className="flex justify-between">
               <span>ID</span>
-              <span>{invoice?.paymentAttempt.payment_attempt_id}</span>
+              <span>{"invoice?.paymentAttempt.payment_attempt_id"}</span>
             </div>
             <div className="flex justify-between">
               <span>Red</span>
@@ -168,57 +158,34 @@ export function OnChainPaymentView() {
             <BitcoinSummary />
           </div>
         </div>
-        <AlertDialog open={open}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Tiempo de espera agotado!</AlertDialogTitle>
-              <AlertDialogDescription>
-                Puedes generar un nuevo código QR o dirección de pago.
-                <br />
-                <span className="text-red-500 font-semibold">
-                  Recuerda que el tiempo de espera es de 300 segundos.
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <Link to={"/"}>
-                <AlertDialogCancel
-                  onClick={() => {
-                    setIsOpen(false);
-                  }}
-                >
-                  Cancel transacción
-                </AlertDialogCancel>
-              </Link>
-              <AlertDialogAction
-                onClick={() => {
-                  axiosInstance
-                    .post("/payment-attempts", {
-                      order_id: invoice!.paymentAttempt.order_id,
-                      payment_method_id: 1,
-                      amount_sats: invoice!.paymentAttempt.amount_sats,
-                      network_fee: invoice!.paymentAttempt.network_fee,
-                      local_currency_id: 1,
-                    })
-                    .then((response) => {
-                      if (response.status === 201) {
-                        setInvoice(response.data);
-                        setTimer(
-                          response.data.paymentPreference.invoice_life_time -
-                            290
-                        );
-                      }
-                    })
-                    .then(() => {
-                      setIsOpen(false);
-                    });
-                }}
-              >
-                Generar nueva invoice
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <TimeoutDialog
+          title="Quieres seguir intentando?"
+          description="Puedes generar un nuevo código QR o dirección de pago."
+          cancelText="Cancelar transacción"
+          retryText="Seguir intentando"
+          open={open}
+          onCancel={() => setOpen(false)}
+          onRetry={() => {
+            axiosInstance
+              .post("/payment-attempts", {
+                order_id: invoice!.paymentAttempt.order_id,
+                payment_method_id: 1,
+                amount_sats: invoice!.paymentAttempt.amount_sats,
+                network_fee: invoice!.paymentAttempt.network_fee,
+                local_currency_id: 1,
+              })
+              .then((response) => {
+                if (response.status === 201) {
+                  setInvoice(response.data);
+                }
+              })
+              .then(() => {
+                reset();
+                setAttempt(0);
+                setOpen(false);
+              });
+          }}
+        />
 
         <Button
           variant="outline"
@@ -245,43 +212,6 @@ export function OnChainPaymentView() {
         >
           Empezar verificación de pago
         </Button>
-      </div>
-    </div>
-  );
-}
-
-function BitcoinSummary() {
-  return (
-    <div className="bg-gray-100  w-full max-w-2xl p-6">
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <div>
-            <h2 className="text-xl font-semibold">
-              Bitcoin <span className=" text-sm">(BTC)</span>
-            </h2>
-            <p className="text-3xl font-bold">
-              $109,444.42{" "}
-              <span className="text-green-400 text-lg ml-2">+2.04%</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
-          <div className="space-y-1">
-            <p className="text-gray-900">Market Cap</p>
-            <p className=" text-gray-900 font-semibold">$2,174.68B</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-gray-900">Volume (24h)</p>
-            <p className="text-gray-900 font-semibold">$46.71B</p>
-          </div>
-          <div className="space-y-1 col-span-2">
-            <p className="text-gray-900">BTC/USDT</p>
-            <p className="text-gray-900 font-semibold">
-              $109,363.63 <span className="text-green-400 ml-2">+1.93%</span>
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

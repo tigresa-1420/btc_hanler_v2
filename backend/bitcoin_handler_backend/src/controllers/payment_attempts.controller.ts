@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import {
   create_new_payment_attempt_service,
   update_payment_attempt_status,
-  get_payment_attempt_by_id,
+  get_payment_attempt_by_id
 } from "../services/payment_attempt.service";
 
 export const create_lightning_payment_attempt = async (

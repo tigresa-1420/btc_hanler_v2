@@ -43,20 +43,28 @@ interface PaymentAttemptResponse {
 interface Order {
   order_id: number;
 }
+interface BitcoinPrice {
+  price_usd: string;
+}
 
-interface OrderContextType {
+interface ContextType {
   order: Order | null;
   invoice: PaymentAttemptResponse | null;
+  bitcoinPrice: BitcoinPrice | null;
   setOrder: (order: Order) => void;
   setInvoice: (invoice: PaymentAttemptResponse) => void;
+  setBitcoinPrice?: (bitcoinPrice: BitcoinPrice) => void;
   reset: () => void;
 }
 
-const OrderContext = createContext<OrderContextType | undefined>(undefined);
+const OrderContext = createContext<ContextType | undefined>(undefined);
 
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
   const [order, setOrderState] = useState<Order | null>(null);
   const [invoice, setInvoiceState] = useState<PaymentAttemptResponse | null>(
+    null
+  );
+  const [bitcoinPrice, setBitcoinPriceState] = useState<BitcoinPrice | null>(
     null
   );
 
@@ -80,6 +88,10 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     setInvoiceState(invoice);
   };
 
+  const setBitcoinPrice = (price: BitcoinPrice) => {
+    setBitcoinPriceState(price);
+  };
+
   const reset = () => {
     localStorage.removeItem("order");
     localStorage.removeItem("invoice");
@@ -89,7 +101,15 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <OrderContext.Provider
-      value={{ order, invoice, setOrder, setInvoice, reset }}
+      value={{
+        order,
+        invoice,
+        setOrder,
+        setInvoice,
+        reset,
+        bitcoinPrice,
+        setBitcoinPrice,
+      }}
     >
       {children}
     </OrderContext.Provider>

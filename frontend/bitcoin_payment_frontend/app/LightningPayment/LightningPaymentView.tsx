@@ -1,49 +1,32 @@
-import React, { useRef, useState } from "react";
+import React, { use, useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../components/ui/alert-dialog";
-import { Link, redirect } from "react-router";
+import { Link, redirect, useFetcher } from "react-router";
 import CopyButton from "~/components/buttons/CopyButton";
+import BitcoinSummary from "~/BitcoinSummaryCard/BitcoinSummary";
+import TimeoutDialog from "~/TimeoutDialog/TimeoutDialog";
+import { useCountdown } from "src/hook/useCountdown";
 export function LightningPaymentView() {
-  const [timer, setTimer] = useState(300);
+  const [open, setOpen] = useState(false);
 
-  const [open, setIsOpen] = useState(false);
-
-  
+  const { remaining, start, reset, isActive } = useCountdown({
+    key: "lightningPaymentCountdown",
+    duration: 10,
+    onExpire: () => setOpen(true),
+  });
   // Simulate a countdown timer
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        if (prev === 1) {
-          setIsOpen(true);
-        }
-        return prev - 1;
-      });
-    }, 1000);
 
-    return () => clearInterval(interval);
-  }, [open]);
-
+  useEffect(() => {
+    if (!open && !isActive) {
+      start();
+    }
+  }, []);
   const lightning = {
     network: "Bitcoin Lightning",
     usd: "$29.99",
     btc: "0.00032 BTC",
     fee: "Sin tarifa",
     total: "0.00034 BTC",
-    note: "Expira en " + timer,
+    note: "Expira en " + remaining,
     sats: "0.0000031 Sats",
     address:
       "Lnbc2m1pnrjd6epp5xg37tadmcc479dt8c3rqk9mu4p08y8a5uvdd4repy4r8zzs40y4qdqqcqzzsxqrrs0fppqhsrcf2xszcp9nu4xgxzjwx6m3qnvlvrtsp5nft6epu8wxaxytyadq95ygyqvewuhuqh4zw6wevwvufxjr0zc0qq9qyyssqtafnv4cz4uuccg8xfw0ec2lgmr9u23rg85ac86zdnkn4mkq93krn283prlthqky5ujpv8x4cecs4634uu4gcw4f57l3haur8vg6myggp7z6erh",
@@ -83,6 +66,7 @@ export function LightningPaymentView() {
               <span>{lightning.total}</span>
             </div>
             <hr className="my-4 border-t border-gray-900" />
+            <BitcoinSummary />
           </div>
 
           {/* QR and address */}
@@ -112,39 +96,23 @@ export function LightningPaymentView() {
             </div>
           </div>
         </div>
-        <AlertDialog open={open}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Tiempo de espera agotado!</AlertDialogTitle>
-              <AlertDialogDescription>
-                Puedes generar un nuevo código QR o dirección de pago.
-                <br />
-                <span className="text-red-500 font-semibold">
-                  Recuerda que el tiempo de espera es de 300 segundos.
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <Link to={"/"}>
-                <AlertDialogCancel
-                  onClick={() => {
-                    setIsOpen(false);
-                  }}
-                >
-                  Cancel transacción
-                </AlertDialogCancel>
-              </Link>
-              <AlertDialogAction
-                onClick={() => {
-                  setIsOpen(false);
-                  setTimer(300);
-                }}
-              >
-                Generar nueva invoice
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <TimeoutDialog
+          title="Tiempo de espera agotado!"
+          description="Puedes generar un nuevo código QR o dirección de pago."
+          children={
+            <span className="text-red-500 font-semibold">
+              Recuerda que el tiempo de espera es de 300 segundos.
+            </span>
+          }
+          cancelText="Cancelar transacción"
+          retryText="Generar nueva invoice"
+          open={open}
+          onCancel={() => setOpen(false)}
+          onRetry={() => {
+            setOpen(false);
+            reset();
+          }}
+        />
         <Link to="/btc/succeed_payment">
           <Button variant="outline" size="sm" color="green" className="mt-4">
             Procesar pago
