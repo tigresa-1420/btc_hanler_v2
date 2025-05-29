@@ -13,29 +13,26 @@ interface SummaryResponse {
 }
 export default function BitcoinSummary() {
   const [summary, setSummary] = React.useState<SummaryResponse | null>(null);
-  const { setBitcoinPrice } = useOrder();
+  const { setBitcoinPrice, invoice } = useOrder();
   const { remaining, start, reset, isActive } = useCountdown({
     key: "bitcoinSummaryCountdown",
-    duration: 10,
+    duration: invoice?.paymentPreference.invoice_life_time,
     onExpire: () => {
-      console.log("Countdown expired, fetching new Bitcoin data...");
       fetchBitcoinData();
     },
     onStart: () => {
-      console.log("Countdown started");
       fetchBitcoinData();
     },
   });
 
   React.useEffect(() => {
+    console.log(remaining);
     if (!isActive) {
       start();
     }
   });
 
   const fetchBitcoinData = async () => {
-    console.log("Fetching Bitcoin data...");
-
     try {
       const response = await axiosInstance.get<SummaryResponse[]>(
         "https://api.coinlore.net/api/ticker/?id=90"

@@ -8,10 +8,10 @@ import React, {
 
 interface PaymentAttemptResponse {
   paymentAttempt: {
-    payment_attempt_id: number;
-    payment_status_id: number;
-    payment_method_id: number;
-    order_id: number;
+    payment_attempt_code: string;
+    payment_status_code: string;
+    payment_method_code: string;
+    order_code: string;
     network_fee: number;
     layer_1_address: string | null;
     invoice_address: string | null;
@@ -31,9 +31,9 @@ interface PaymentAttemptResponse {
   wallet_address: string;
   amount_info: {
     amount_fiat: string;
-    Currency: {
+    Currencies: {
       name: string;
-      code: string;
+      currency_code: string;
       symbol: string;
       country: string;
     };
@@ -41,7 +41,7 @@ interface PaymentAttemptResponse {
 }
 
 interface Order {
-  order_id: number;
+  order_code: string;
 }
 interface BitcoinPrice {
   price_usd: string;

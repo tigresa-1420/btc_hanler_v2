@@ -10,36 +10,34 @@ export function BitcoinPaymentButton() {
   }, []);
   const [isHovered, setIsHovered] = React.useState(false);
   const navigate = useNavigate();
-  const { setOrder, setInvoice } = useOrder();
+  const { setInvoice } = useOrder();
+
   const handler_create_order = async () => {
-    navigate("/btc/payment");
     const response = await axiosInstance.post("/orders", {
-      customer_id: 1,
+      customer_code: "CUS001",
       external_ref: "123456789",
       amount_fiat: 20,
-      local_currency_id: 1,
-      user_transaction_ref: "123456789",
+      local_currency_code: "USD",
     });
 
     if (response.status === 201) {
       await handler_create_payment_attempt(
-        response.data.created_order.order_id,
-        response.data.created_payment_request.payment_request_id
+        response.data.created_order.order_code,
+        response.data.created_payment_request.payment_request_code
       );
     }
   };
 
   const handler_create_payment_attempt = async (
-    order_id: number,
-    payment_request_id: number
+    order_code: number,
+    payment_request_code: number
   ) => {
     const response = await axiosInstance.post("/payment-attempts", {
-      order_id: order_id,
-      payment_request_id: payment_request_id,
-      payment_method_id: 1,
-      amount_sats: 23.67207433702927,
-      network_fee: 1.1836037168514635,
-      local_currency_id: 1,
+      order_code: order_code,
+      payment_request_code: payment_request_code,
+      payment_method_code: "PM-O",
+      amount_sats: 0.5,
+      network_fee: 2.5,
     });
     console.log(response.status);
     if (response.status === 201) {
@@ -52,7 +50,6 @@ export function BitcoinPaymentButton() {
     <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
       <button
         onClick={() => {
-          //simulate a payment process
           handler_create_order();
         }}
         className={`relative overflow-hidden group flex items-center justify-center px-10 py-5 ${

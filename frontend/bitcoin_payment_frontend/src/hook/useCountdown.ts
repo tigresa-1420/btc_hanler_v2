@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-
 export function useCountdown({
   key = "countdownStart",
-  duration = 300,
+  duration = 3,
   onExpire,
   onStart,
 }: {

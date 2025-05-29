@@ -9,40 +9,41 @@ datasource db {
 }
 
 model Customer {
-  customer_id                  Int                     @id @default(autoincrement())
-  name                         String?                 @db.Char(100)
-  transaction_fee              Decimal?                @db.Decimal
-  customer_wallet_address_code String
-  created_at                   DateTime?               @default(now()) @db.Timestamptz(6)
-  updated_at                   DateTime?               @default(now()) @db.Timestamptz(6)
-  customer_code                String?                 @unique
-  Customer_wallet_address      Customer_wallet_address @relation(fields: [customer_wallet_address_code], references: [customer_wallet_address_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_customer_customer_wallet_address")
-  Order                        Order[]
+  customer_id                Int                      @id @unique @default(autoincrement())
+  name                       String?                  @db.Char(100)
+  transaction_fee            Decimal?                 @db.Decimal
+  created_at                 DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?                @default(now()) @db.Timestamptz(6)
+  customer_code              String?                  @unique
+  customer_wallet_address_id Int?                     @unique
+  Customer_wallet_address    Customer_wallet_address? @relation(fields: [customer_wallet_address_id], references: [customer_wallet_address_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_customer_customer_wallet_address")
+  Order                      Order[]
 }
 
 model Customer_wallet_address {
-  customer_wallet_address_id   Int               @id @default(autoincrement())
-  address                      String?           @db.Char(100)
-  created_at                   DateTime?         @default(now()) @db.Timestamptz(6)
-  updated_at                   DateTime?         @default(now()) @db.Timestamptz(6)
-  wallet_address_status_code   String?
-  customer_wallet_address_code String?           @unique
-  Customer                     Customer[]
+  customer_wallet_address_id   Int                    @id @default(autoincrement())
+  address                      String?                @db.Char(100)
+  created_at                   DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime?              @default(now()) @db.Timestamptz(6)
+  customer_wallet_address_code String?                @unique
+  wallet_address_status_id     Int?                   @default(1)
+  Customer                     Customer?
+  Wallet_address_status        Wallet_address_status? @relation(fields: [wallet_address_status_id], references: [wallet_address_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_customer_wallet_address")
   Payment_attempt              Payment_attempt[]
 }
 
 model Order {
-  order_id          Int               @id @default(autoincrement())
-  order_status_code String
-  customer_code     String
-  external_ref      String?
-  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime?         @default(now()) @db.Timestamptz(6)
-  order_code        String?           @unique
-  Customer          Customer          @relation(fields: [customer_code], references: [customer_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_customer")
-  Order_status      Order_status      @relation(fields: [order_status_code], references: [order_tatus_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_order_status")
-  Payment_attempt   Payment_attempt[]
-  Payment_request   Payment_request[]
+  order_id        Int               @id @default(autoincrement())
+  external_ref    String?
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  order_code      String?           @unique
+  order_status_id Int?              @default(1)
+  customer_id     Int?
+  Customer        Customer?         @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_customer")
+  Order_status    Order_status?     @relation(fields: [order_status_id], references: [order_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_order_status")
+  Payment_attempt Payment_attempt[]
+  Payment_request Payment_request[]
 }
 
 model Order_status {
@@ -56,28 +57,29 @@ model Order_status {
 }
 
 model Payment_attempt {
-  payment_attempt_id           Int                      @id @default(autoincrement())
-  payment_status_code          String?
-  payment_method_code          String?
-  order_code                   String?
-  network_fee                  Decimal?                 @db.Decimal
-  layer_1_address              String?
-  invoice_address              String?
-  amount_sats                  Decimal?                 @db.Decimal
-  metadata                     String?
-  blocks_confirmed             Int?
-  customer_wallet_address_code String?
-  payment_preference_code      String?
-  created_at                   DateTime?                @default(now()) @db.Timestamptz(6)
-  updated_at                   DateTime?                @default(now()) @db.Timestamptz(6)
-  confirmed_at                 DateTime?                @default(now()) @db.Timestamptz(6)
-  payment_attempt_code         String?                  @unique
-  Customer_wallet_address      Customer_wallet_address? @relation(fields: [customer_wallet_address_code], references: [customer_wallet_address_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_customer_wallet")
-  Order                        Order?                   @relation(fields: [order_code], references: [order_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_order")
-  Payment_method               Payment_method?          @relation(fields: [payment_method_code], references: [payment_method_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_method")
-  Payment_preference           Payment_preference?      @relation(fields: [payment_preference_code], references: [payment_preference_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_preference")
-  Payment_status               Payment_status?          @relation(fields: [payment_status_code], references: [payment_status_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_status")
-  Payment_request              Payment_request[]
+  payment_attempt_id         Int                      @id @default(autoincrement())
+  payment_method_code        String?
+  network_fee                Decimal?                 @db.Decimal
+  layer_1_address            String?
+  invoice_address            String?
+  amount_sats                Decimal?                 @db.Decimal
+  metadata                   String?
+  blocks_confirmed           Int?
+  created_at                 DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?                @default(now()) @db.Timestamptz(6)
+  confirmed_at               DateTime?                @default(now()) @db.Timestamptz(6)
+  payment_attempt_code       String?                  @unique
+  order_id                   Int?
+  customer_wallet_address_id Int?
+  payment_preference_id      Int?
+  payment_method_id          Int?
+  payment_status_id          Int?
+  Customer_wallet_address    Customer_wallet_address? @relation(fields: [customer_wallet_address_id], references: [customer_wallet_address_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_customer_wallet")
+  Order                      Order?                   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_order")
+  Payment_method             Payment_method?          @relation(fields: [payment_method_id], references: [payment_method_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_method")
+  Payment_preference         Payment_preference?      @relation(fields: [payment_preference_id], references: [payment_preference_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_preference")
+  Payment_status             Payment_status?          @relation(fields: [payment_status_id], references: [payment_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_attempt_payment_status")
+  Payment_request            Payment_request[]
 }
 
 model Payment_method {
@@ -100,19 +102,19 @@ model Payment_preference {
 }
 
 model Payment_request {
-  payment_request_id     Int              @id @default(autoincrement())
-  order_code             String
-  payment_status_code    String
-  succeeded_payment_code String?
-  amount_fiat            Decimal?         @db.Decimal
-  local_currency_code    String?
-  created_at             DateTime?        @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime?        @default(now()) @db.Timestamptz(6)
-  payment_request_code   String?          @unique
-  Currencies             Currencies?      @relation(fields: [local_currency_code], references: [currency_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_currency")
-  Order                  Order            @relation(fields: [order_code], references: [order_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_order")
-  Payment_status         Payment_status   @relation(fields: [payment_status_code], references: [payment_status_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_payment_status")
-  Payment_attempt        Payment_attempt? @relation(fields: [succeeded_payment_code], references: [payment_attempt_code], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_succeeded_attempt")
+  payment_request_id   Int              @id @default(autoincrement())
+  amount_fiat          Decimal?         @db.Decimal
+  created_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  payment_request_code String?          @unique
+  order_id             Int?
+  succeeded_payment_id Int?
+  payment_status_id    Int?
+  local_currency_id    Int?
+  Currencies           Currencies?      @relation(fields: [local_currency_id], references: [currency_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_currency")
+  Order                Order?           @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_order")
+  Payment_attempt      Payment_attempt? @relation(fields: [succeeded_payment_id], references: [payment_attempt_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_payment_attempt")
+  Payment_status       Payment_status?  @relation(fields: [payment_status_id], references: [payment_status_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_request_payment_status")
 }
 
 model Payment_status {
@@ -127,12 +129,13 @@ model Payment_status {
 }
 
 model Wallet_address_status {
-  wallet_address_status_id   Int       @id @default(autoincrement())
-  status                     String?   @db.VarChar(50)
-  description                String?   @db.VarChar(100)
-  created_at                 DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at                 DateTime? @default(now()) @db.Timestamptz(6)
-  wallet_address_status_code String?   @unique
+  wallet_address_status_id   Int                       @id @default(autoincrement())
+  status                     String?                   @db.VarChar(50)
+  description                String?                   @db.VarChar(100)
+  created_at                 DateTime?                 @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?                 @default(now()) @db.Timestamptz(6)
+  wallet_address_status_code String?                   @unique
+  Customer_wallet_address    Customer_wallet_address[]
 }
 
 model Currencies {
@@ -141,8 +144,7 @@ model Currencies {
   country         String?           @db.VarChar(100)
   created_at      DateTime?         @default(now()) @db.Timestamptz(6)
   updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
-  code            String            @unique(map: "Currency_code_key") @db.Char(3)
+  currency_code   String            @unique(map: "Currency_code_key") @db.Char(3)
   symbol          String?           @db.VarChar(10)
-  currency_code   String?           @unique
   Payment_request Payment_request[]
 }

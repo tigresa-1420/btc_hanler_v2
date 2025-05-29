@@ -5,21 +5,35 @@ import CopyButton from "~/components/buttons/CopyButton";
 import BitcoinSummary from "~/BitcoinSummaryCard/BitcoinSummary";
 import TimeoutDialog from "~/TimeoutDialog/TimeoutDialog";
 import { useCountdown } from "src/hook/useCountdown";
+import { useOrder } from "src/context/invoiceContext";
+import axiosInstance from "src/api/axios";
+
 export function LightningPaymentView() {
   const [open, setOpen] = useState(false);
-
+  const { invoice } = useOrder();
   const { remaining, start, reset, isActive } = useCountdown({
     key: "lightningPaymentCountdown",
-    duration: 10,
+    duration: invoice?.paymentPreference.invoice_life_time,
     onExpire: () => setOpen(true),
   });
   // Simulate a countdown timer
 
   useEffect(() => {
+    create_lighting_invoice();
     if (!open && !isActive) {
       start();
     }
   }, []);
+
+  const create_lighting_invoice = async () => {
+    await axiosInstance.post("/payment-attempts", {
+      order_code: invoice?.paymentAttempt.order_code,
+      payment_request_code: invoice?.paymentAttempt.payment_attempt_code,
+      payment_method_code: "PM-L",
+      amount_sats: invoice?.paymentAttempt.amount_sats,
+      network_fee: invoice?.paymentAttempt.network_fee,
+    });
+  };
   const lightning = {
     network: "Bitcoin Lightning",
     usd: "$29.99",
@@ -101,7 +115,8 @@ export function LightningPaymentView() {
           description="Puedes generar un nuevo código QR o dirección de pago."
           children={
             <span className="text-red-500 font-semibold">
-              Recuerda que el tiempo de espera es de 300 segundos.
+              Recuerda que el tiempo de espera es de{" "}
+              {invoice?.paymentPreference.invoice_life_time} segundos.
             </span>
           }
           cancelText="Cancelar transacción"

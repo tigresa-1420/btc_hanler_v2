@@ -9,26 +9,18 @@ import TimeoutDialog from "~/TimeoutDialog/TimeoutDialog";
 import { useCountdown } from "src/hook/useCountdown";
 
 export function OnChainPaymentView() {
-  useEffect(() => {
-    if (!isActive) {
-      start();
-    }
-  }, []);
   const { order, invoice, setInvoice, bitcoinPrice } = useOrder();
   const navigate = useNavigate();
-
   const [open, setOpen] = useState(false);
-  const maxAttempt = 3;
+  const maxAttempt = invoice?.paymentPreference.invoice_max_attempt;
   const [attempt, setAttempt] = useState(0);
   const { remaining, start, reset, isActive } = useCountdown({
     key: "onChainPaymentCountdown",
-    duration: 10,
     onExpire: () => {
       setAttempt((prev) => prev + 1);
     },
   });
   useEffect(() => {
-    console.log("btc price ", bitcoinPrice?.price_usd);
     if (attempt === maxAttempt) {
       console.log("Max attempts reached, opening timeout dialog");
       setOpen(true);
@@ -36,50 +28,41 @@ export function OnChainPaymentView() {
       reset();
     }
   }, [attempt]);
+  useEffect(() => {
+    if (!isActive) {
+      start();
+    }
+    if (!invoice) null;
+  }, []);
 
-  {
-    /**
-    const onchain2 = {
-    network: "Bitcoin OnChain",
-    currency:
-      invoice?.amount_info.Currency.symbol + invoice?.amount_info.amount_fiat!,
-    btc: satsToBtc(invoice?.paymentAttempt.amount_sats!!) + " BTC",
-    fee: satsToBtc(invoice!!.paymentAttempt.network_fee) + " BTC",
-    total:
-      handle_get_total(
-        invoice!!.paymentAttempt.amount_sats,
-        invoice!!.paymentAttempt.network_fee
-      ) + " BTC",
-    note: "Puede tardar 10 a 60 min en ser confirmado",
-    timer: "Expira en " + timer + " segundos",
-    attempt: 0 + "/" + maxAttempt,
-    address: invoice!.wallet_address,
-    currency_code: invoice!.amount_info.Currency.code,
-    sats: invoice!.paymentAttempt.amount_sats + " Sats",
-  }; */
-  }
+  const get_total = () => {
+    return (
+      (invoice?.paymentAttempt.amount_sats ?? 0) +
+      (invoice?.paymentAttempt.network_fee ?? 0)
+    );
+  };
 
   const onchain = {
     network: "Bitcoin OnChain",
-    currency: "",
-    btc: " BTC",
-    fee: " BTC",
-    total: " BTC",
+    currency:
+      invoice?.amount_info.Currencies.symbol +
+      invoice?.amount_info.amount_fiat!,
+    btc: invoice?.paymentAttempt.amount_sats + " BTC",
+    fee: invoice?.paymentAttempt.network_fee + " BTC",
+    total: get_total() + " BTC",
     note: "Puede tardar 10 a 60 min en ser confirmado",
-    timer: "Expira en " + remaining + " segundos",
-    attempt: attempt + "/" + maxAttempt,
-    address: "",
-    currency_code: "",
-    sats: " Sats",
+    address: invoice?.wallet_address,
+    currency_code: invoice?.amount_info.Currencies.currency_code,
+    sats: invoice?.paymentAttempt.amount_sats + " Sats",
   };
 
   const handle_update_status = async (
-    payment_attempt_id: number,
-    payment_status_id: number
+    payment_attempt_code: string,
+    payment_status_code: string
   ) => {
     await axiosInstance.put(`/payment-attempts/`, {
-      payment_attempt_id,
-      payment_status_id,
+      payment_attempt_code,
+      payment_status_code,
     });
   };
 
@@ -98,14 +81,6 @@ export function OnChainPaymentView() {
               alt="QR"
               className="w-60 h-60 mx-auto my-4"
             />
-            <div className="mb-4 ">
-              <p className="text-center text-sm text-gray-900 mt-2 whitespace-pre-line">
-                {onchain.timer}
-              </p>
-              <p className="text-center text-sm text-gray-900 mt-2 whitespace-pre-line">
-                Intentos {onchain.attempt}
-              </p>
-            </div>
             <div className="flex items-center gap-2">
               <input
                 title={onchain.address}
@@ -124,7 +99,7 @@ export function OnChainPaymentView() {
             </h3>
             <div className="flex justify-between">
               <span>ID</span>
-              <span>{"invoice?.paymentAttempt.payment_attempt_id"}</span>
+              <span>{invoice?.paymentAttempt.payment_attempt_code}</span>
             </div>
             <div className="flex justify-between">
               <span>Red</span>
@@ -168,7 +143,7 @@ export function OnChainPaymentView() {
           onRetry={() => {
             axiosInstance
               .post("/payment-attempts", {
-                order_id: invoice!.paymentAttempt.order_id,
+                order_id: invoice!.paymentAttempt.order_code,
                 payment_method_id: 1,
                 amount_sats: invoice!.paymentAttempt.amount_sats,
                 network_fee: invoice!.paymentAttempt.network_fee,
@@ -194,14 +169,14 @@ export function OnChainPaymentView() {
           className="mt-4"
           onClick={async () => {
             await handle_update_status(
-              invoice!.paymentAttempt.payment_attempt_id,
-              2 // Assuming 2 is the ID for "in progress" status
+              invoice!.paymentAttempt.payment_attempt_code,
+              "PS-PR " // Assuming 2 is the ID for "in progress" status
             );
 
             axiosInstance
               .get(
                 `/payment-attempts/${
-                  invoice!.paymentAttempt.payment_attempt_id
+                  invoice!.paymentAttempt.payment_attempt_code
                 }`
               )
               .then((res) => {
