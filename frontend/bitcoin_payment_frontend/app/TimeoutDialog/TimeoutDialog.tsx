@@ -10,7 +10,7 @@ import {
   AlertDialogAction,
 } from "../components/ui/alert-dialog";
 import { Link } from "react-router";
-import { useOrder } from "src/context/invoiceContext";
+import { useOrder } from "src/context/InvoiceContext";
 import axiosInstance from "src/api/axios";
 interface TimeoutDialogProps {
   open: boolean;
@@ -33,7 +33,7 @@ export default function TimeoutDialog({
   retryText = "Generar nueva invoice",
   children,
 }: TimeoutDialogProps) {
-  const { invoice } = useOrder();
+  const { order } = useOrder();
   return (
     <AlertDialog open={open}>
       <AlertDialogContent>
@@ -48,13 +48,14 @@ export default function TimeoutDialog({
         <AlertDialogFooter>
           <AlertDialogCancel
             onClick={async () => {
-              console.log(invoice?.paymentAttempt)
-              axiosInstance
+              await axiosInstance
                 .patch("/orders", {
-                  order_code: invoice?.paymentAttempt.order_code,
+                  order_code: order,
                 })
                 .then((response) => {
-                  if (response.status === 200) onCancel();
+                  if (response.status === 200) {
+                    onCancel();
+                  }
                 });
             }}
           >

@@ -6,9 +6,9 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
-import { OrderProvider } from "src/context/invoiceContext";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { OrderProvider } from "../src/context/InvoiceContext";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },

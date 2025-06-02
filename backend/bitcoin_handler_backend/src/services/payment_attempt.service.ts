@@ -16,7 +16,7 @@ export const create_new_payment_attempt_service = async (
 ) => {
   if (!input.order_code) throw new Error("Missing order_id");
 
-  if (!input.payment_method_code) throw new Error("Missing order_id");
+  if (!input.payment_method_code) throw new Error("Missing method code");
 
   return await prisma.$transaction(async (tx: any) => {
     //get order_id by order_code

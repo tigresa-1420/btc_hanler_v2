@@ -123,3 +123,33 @@ export const useOrder = () => {
   }
   return context;
 };
+export function getAllCountdownStatuses(duration_default = 3): {
+  key: string;
+  is_active: boolean;
+  remaining: number;
+}[] {
+  const keys: string[] = JSON.parse(
+    localStorage.getItem("countdownKeys") || "[]"
+  );
+  const now = Date.now();
+
+  return keys
+    .map((key) => {
+      const stored = localStorage.getItem(key);
+      if (!stored) return { key, is_active: false, remaining: 0 };
+
+      const start_time = parseInt(stored);
+      const elapsed = Math.floor((now - start_time) / 1000);
+      const remaining = duration_default - elapsed;
+
+      if (remaining <= 0) {
+        localStorage.removeItem(key);
+        const updated = keys.filter((k) => k !== key);
+        localStorage.setItem("countdownKeys", JSON.stringify(updated));
+        return { key, is_active: false, remaining: 0 };
+      }
+
+      return { key, is_active: true, remaining };
+    })
+    .filter(({ is_active }) => is_active);
+}

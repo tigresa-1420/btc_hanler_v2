@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+
 export function useCountdown({
   key = "countdownStart",
   duration = 3,
@@ -22,6 +23,12 @@ export function useCountdown({
     setIsActive(false);
   };
 
+  const removeKeyFromList = useCallback(() => {
+    const keys = JSON.parse(localStorage.getItem("countdownKeys") || "[]");
+    const filtered = keys.filter((k: string) => k !== key);
+    localStorage.setItem("countdownKeys", JSON.stringify(filtered));
+  }, [key]);
+
   const updateCountdown = useCallback(
     (startTime: number) => {
       const now = Date.now();
@@ -32,14 +39,23 @@ export function useCountdown({
         clear();
         setRemaining(0);
         localStorage.removeItem(key);
+        removeKeyFromList();
         if (onExpire) onExpire();
         return;
       }
 
       setRemaining(newRemaining);
     },
-    [duration, key, onExpire]
+    [duration, key, onExpire, removeKeyFromList]
   );
+
+  const registerKey = useCallback(() => {
+    const keys = JSON.parse(localStorage.getItem("countdownKeys") || "[]");
+    if (!keys.includes(key)) {
+      keys.push(key);
+      localStorage.setItem("countdownKeys", JSON.stringify(keys));
+    }
+  }, [key]);
 
   const start = useCallback(() => {
     const stored = localStorage.getItem(key);
@@ -49,6 +65,7 @@ export function useCountdown({
       localStorage.setItem(key, startTime.toString());
     }
 
+    registerKey();
     updateCountdown(startTime);
 
     intervalRef.current = setInterval(() => {
@@ -57,12 +74,13 @@ export function useCountdown({
 
     setIsActive(true);
     if (onStart) onStart();
-  }, [key, updateCountdown]);
+  }, [key, updateCountdown, registerKey, onStart]);
 
   const reset = useCallback(() => {
     clear();
     const newStart = Date.now();
     localStorage.setItem(key, newStart.toString());
+    registerKey();
     setRemaining(duration);
 
     intervalRef.current = setInterval(() => {
@@ -70,10 +88,10 @@ export function useCountdown({
     }, 1000);
 
     setIsActive(true);
-  }, [duration, key, updateCountdown]);
+  }, [duration, key, updateCountdown, registerKey]);
 
   useEffect(() => {
-    return () => clear(); // cleanup on unmount
+    return () => clear();
   }, []);
 
   return { remaining, start, reset, isActive };

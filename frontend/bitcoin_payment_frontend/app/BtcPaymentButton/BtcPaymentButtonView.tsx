@@ -10,7 +10,7 @@ export function BitcoinPaymentButton() {
   }, []);
   const [isHovered, setIsHovered] = React.useState(false);
   const navigate = useNavigate();
-  const { setInvoice } = useOrder();
+  const { setInvoice, setOrder } = useOrder();
 
   const handler_create_order = async () => {
     const response = await axiosInstance.post("/orders", {
@@ -19,7 +19,7 @@ export function BitcoinPaymentButton() {
       amount_fiat: 20,
       local_currency_code: "USD",
     });
-
+    setOrder(response.data.created_order.order_code);
     if (response.status === 201) {
       await handler_create_payment_attempt(
         response.data.created_order.order_code,
@@ -42,6 +42,7 @@ export function BitcoinPaymentButton() {
     console.log(response.status);
     if (response.status === 201) {
       setInvoice(response.data);
+
       console.log("should redirect to payment");
       navigate("/btc/payment");
     }

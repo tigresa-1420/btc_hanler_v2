@@ -1,39 +1,52 @@
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import CopyButton from "~/components/buttons/CopyButton";
-import { useOrder } from "src/context/invoiceContext";
+import { useOrder } from "src/context/InvoiceContext";
 import { useNavigate } from "react-router";
 import axiosInstance from "src/api/axios";
 import BitcoinSummary from "~/BitcoinSummaryCard/BitcoinSummary";
 import TimeoutDialog from "~/TimeoutDialog/TimeoutDialog";
 import { useCountdown } from "src/hook/useCountdown";
-
-export function OnChainPaymentView() {
+interface OnchainPaymentViewProps {
+  timer: {
+    remaining: number;
+    start: () => void;
+    reset: () => void;
+    isActive: boolean;
+  };
+  globalTimer: number;
+}
+export function OnChainPaymentView({
+  timer,
+  globalTimer,
+}: OnchainPaymentViewProps) {
   const { order, invoice, setInvoice, bitcoinPrice } = useOrder();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const maxAttempt = invoice?.paymentPreference.invoice_max_attempt;
   const [attempt, setAttempt] = useState(0);
+
   const { remaining, start, reset, isActive } = useCountdown({
     key: "onChainPaymentCountdown",
+    duration: invoice?.paymentPreference.invoice_life_time,
     onExpire: () => {
       setAttempt((prev) => prev + 1);
     },
   });
+  console.log("onchain", timer.remaining);
+  // Efecto para manejar el inicio del temporizador
   useEffect(() => {
-    if (attempt === maxAttempt) {
-      console.log("Max attempts reached, opening timeout dialog");
-      setOpen(true);
-    } else {
-      reset();
-    }
-  }, [attempt]);
-  useEffect(() => {
-    if (!isActive) {
+    if (!isActive && attempt < maxAttempt!) {
       start();
     }
-    if (!invoice) null;
-  }, []);
+  }, [isActive, attempt, maxAttempt, start]);
+
+  // Efecto para manejar cuando se alcanza el máximo de intentos
+  useEffect(() => {
+    if (attempt >= maxAttempt!) {
+      setOpen(true);
+    }
+  }, [attempt, maxAttempt]);
 
   const get_total = () => {
     return (
@@ -139,15 +152,18 @@ export function OnChainPaymentView() {
           cancelText="Cancelar transacción"
           retryText="Seguir intentando"
           open={open}
-          onCancel={() => setOpen(false)}
+          onCancel={() => {
+            setOpen(false);
+            navigate("/");
+          }}
           onRetry={() => {
             axiosInstance
               .post("/payment-attempts", {
-                order_id: invoice!.paymentAttempt.order_code,
-                payment_method_id: 1,
+                order_code: order,
+                payment_method_code: "PM-O",
                 amount_sats: invoice!.paymentAttempt.amount_sats,
                 network_fee: invoice!.paymentAttempt.network_fee,
-                local_currency_id: 1,
+                local_currency_code: "USD",
               })
               .then((response) => {
                 if (response.status === 201) {
