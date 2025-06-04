@@ -56,7 +56,6 @@ const BitcoinSummary: React.FC = () => {
 
   // Configuración del countdown
   const { remaining, start, reset, isActive } = useCountdown({
-    key: "bitcoinSummaryCountdown",
     duration,
     onExpire: fetchBitcoinData,
     onStart: fetchBitcoinData,

@@ -1,98 +1,71 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 
+// Define el tipo de retorno del hook
+interface CountdownReturn {
+  remaining: number;
+  start: () => void;
+  reset: () => void;
+  isActive: boolean;
+}
+
 export function useCountdown({
-  key = "countdownStart",
   duration = 3,
   onExpire,
   onStart,
 }: {
-  key?: string;
   duration?: number;
   onExpire?: () => void;
   onStart?: () => void;
-}) {
+}): CountdownReturn {
+  // <-- Añade el tipo de retorno aquí
   const [remaining, setRemaining] = useState<number>(duration);
   const [isActive, setIsActive] = useState<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
-  const clear = () => {
+  const clear = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     setIsActive(false);
-  };
+    startTimeRef.current = null;
+  }, []);
 
-  const removeKeyFromList = useCallback(() => {
-    const keys = JSON.parse(localStorage.getItem("countdownKeys") || "[]");
-    const filtered = keys.filter((k: string) => k !== key);
-    localStorage.setItem("countdownKeys", JSON.stringify(filtered));
-  }, [key]);
+  const updateCountdown = useCallback(() => {
+    if (!startTimeRef.current) return;
 
-  const updateCountdown = useCallback(
-    (startTime: number) => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - startTime) / 1000);
-      const newRemaining = duration - elapsed;
+    const now = Date.now();
+    const elapsed = Math.floor((now - startTimeRef.current) / 1000);
+    const newRemaining = duration - elapsed;
 
-      if (newRemaining <= 0) {
-        clear();
-        setRemaining(0);
-        localStorage.removeItem(key);
-        removeKeyFromList();
-        if (onExpire) onExpire();
-        return;
-      }
-
-      setRemaining(newRemaining);
-    },
-    [duration, key, onExpire, removeKeyFromList]
-  );
-
-  const registerKey = useCallback(() => {
-    const keys = JSON.parse(localStorage.getItem("countdownKeys") || "[]");
-    if (!keys.includes(key)) {
-      keys.push(key);
-      localStorage.setItem("countdownKeys", JSON.stringify(keys));
+    if (newRemaining <= 0) {
+      clear();
+      setRemaining(0);
+      onExpire?.();
+      return;
     }
-  }, [key]);
+
+    setRemaining(newRemaining);
+  }, [duration, onExpire, clear]);
 
   const start = useCallback(() => {
-    const stored = localStorage.getItem(key);
-    const startTime = stored ? parseInt(stored) : Date.now();
-
-    if (!stored) {
-      localStorage.setItem(key, startTime.toString());
-    }
-
-    registerKey();
-    updateCountdown(startTime);
-
-    intervalRef.current = setInterval(() => {
-      updateCountdown(startTime);
-    }, 1000);
-
+    clear();
+    startTimeRef.current = Date.now();
+    setRemaining(duration);
     setIsActive(true);
-    if (onStart) onStart();
-  }, [key, updateCountdown, registerKey, onStart]);
+
+    intervalRef.current = setInterval(updateCountdown, 1000);
+    onStart?.();
+  }, [duration, updateCountdown, onStart, clear]);
 
   const reset = useCallback(() => {
-    clear();
-    const newStart = Date.now();
-    localStorage.setItem(key, newStart.toString());
-    registerKey();
-    setRemaining(duration);
-
-    intervalRef.current = setInterval(() => {
-      updateCountdown(newStart);
-    }, 1000);
-
-    setIsActive(true);
-  }, [duration, key, updateCountdown, registerKey]);
+    start();
+  }, [start]);
 
   useEffect(() => {
     return () => clear();
-  }, []);
+  }, [clear]);
 
   return { remaining, start, reset, isActive };
 }

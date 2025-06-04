@@ -12,51 +12,6 @@ export default function PaymentViewSwitcher() {
     "onchain"
   );
   const { invoice } = useOrder();
-  const timerDuration = invoice?.paymentPreference.invoice_life_time || 300; // Default 5 minutes
-
-  // Contadores centralizados en el padre
-  const onchainTimer = useCountdown({
-    duration: timerDuration,
-    key: "onchain",
-    onExpire: () => console.log("OnChain timer expired"),
-  });
-
-  const lightningTimer = useCountdown({
-    duration: timerDuration,
-    key: "lightning",
-    onExpire: () => console.log("Lightning timer expired"),
-  });
-
-  // Referencias para controlar los contadores desde los hijos
-  const timerControls = {
-    onchain: {
-      remaining: onchainTimer.remaining,
-      start: onchainTimer.start,
-      reset: onchainTimer.reset,
-      isActive: onchainTimer.isActive,
-    },
-    lightning: {
-      remaining: lightningTimer.remaining,
-      start: lightningTimer.start,
-      reset: lightningTimer.reset,
-      isActive: lightningTimer.isActive,
-    },
-  };
-
-  // Iniciar ambos contadores al montar
-  useEffect(() => {
-    onchainTimer.start();
-    lightningTimer.start();
-  }, []);
-
-  // Pausar el contador no visible cuando cambia la vista
-  useEffect(() => {
-    if (paymentView === "onchain") {
-      lightningTimer.reset(); // Reinicia el lightning cuando no está visible
-    } else {
-      onchainTimer.reset(); // Reinicia el onchain cuando no está visible
-    }
-  }, [paymentView]);
 
   return (
     <div className="bg-gray-900 rounded-xl pt-6">
@@ -105,10 +60,7 @@ export default function PaymentViewSwitcher() {
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <OnChainPaymentView
-                      timer={timerControls.onchain}
-                      globalTimer={onchainTimer.remaining}
-                    />
+                    <OnChainPaymentView />
                   </motion.div>
                 )}
                 {paymentView === "lightning" && (
@@ -119,10 +71,7 @@ export default function PaymentViewSwitcher() {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <LightningPaymentView
-                      timer={timerControls.lightning}
-                      globalTimer={lightningTimer.remaining}
-                    />
+                    <LightningPaymentView />
                   </motion.div>
                 )}
               </AnimatePresence>

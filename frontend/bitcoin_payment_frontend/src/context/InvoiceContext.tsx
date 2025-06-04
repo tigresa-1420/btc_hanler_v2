@@ -42,6 +42,7 @@ interface PaymentAttemptResponse {
 
 interface Order {
   order_code: string;
+  payment_request_code: string;
 }
 interface BitcoinPrice {
   price_usd: string;
@@ -49,10 +50,15 @@ interface BitcoinPrice {
 
 interface ContextType {
   order: Order | null;
-  invoice: PaymentAttemptResponse | null;
+  paymentAttempts: {
+    onchain: PaymentAttemptResponse | null;
+    lightning: PaymentAttemptResponse | null;
+  };
+  activeMethod: "onchain" | "lightning";
   bitcoinPrice: BitcoinPrice | null;
   setOrder: (order: Order) => void;
-  setInvoice: (invoice: PaymentAttemptResponse) => void;
+  setPaymentAttempt: (invoice: PaymentAttemptResponse) => void;
+  setActiveMethod: (method: "onchain" | "lightning") => void;
   setBitcoinPrice?: (bitcoinPrice: BitcoinPrice) => void;
   reset: () => void;
 }
@@ -61,8 +67,12 @@ const OrderContext = createContext<ContextType | undefined>(undefined);
 
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
   const [order, setOrderState] = useState<Order | null>(null);
-  const [invoice, setInvoiceState] = useState<PaymentAttemptResponse | null>(
-    null
+  const [paymentAttempts, setPaymentAttempts] = useState<{
+    onchain: PaymentAttemptResponse | null;
+    lightning: PaymentAttemptResponse | null;
+  }>({ onchain: null, lightning: null });
+  const [activeMethod, setActiveMethod] = useState<"onchain" | "lightning">(
+    "onchain"
   );
   const [bitcoinPrice, setBitcoinPriceState] = useState<BitcoinPrice | null>(
     null
@@ -71,21 +81,34 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
   // Al montar, recupera desde localStorage
   useEffect(() => {
     const storedOrder = localStorage.getItem("order");
-    const storedInvoice = localStorage.getItem("invoice");
+    const storedAttempts = localStorage.getItem("paymentAttempts");
+    const storedActiveMethod = localStorage.getItem("activeMethod");
 
     if (storedOrder) setOrderState(JSON.parse(storedOrder));
-    if (storedInvoice) setInvoiceState(JSON.parse(storedInvoice));
+    if (storedAttempts) setPaymentAttempts(JSON.parse(storedAttempts));
+    if (
+      storedActiveMethod === "lightning" ||
+      storedActiveMethod === "onchain"
+    ) {
+      setActiveMethod(storedActiveMethod);
+    }
   }, []);
 
-  // Guarda en localStorage cada vez que se actualiza
   const setOrder = (order: Order) => {
     localStorage.setItem("order", JSON.stringify(order));
     setOrderState(order);
   };
 
-  const setInvoice = (invoice: PaymentAttemptResponse) => {
-    localStorage.setItem("invoice", JSON.stringify(invoice));
-    setInvoiceState(invoice);
+  const setPaymentAttempt = (attempt: PaymentAttemptResponse) => {
+    const type =
+      attempt.paymentAttempt.payment_method_code === "PM-L"
+        ? "lightning"
+        : "onchain";
+    const updated = { ...paymentAttempts, [type]: attempt };
+    localStorage.setItem("paymentAttempts", JSON.stringify(updated));
+    setPaymentAttempts(updated);
+    setActiveMethod(type);
+    localStorage.setItem("activeMethod", type);
   };
 
   const setBitcoinPrice = (price: BitcoinPrice) => {
@@ -94,21 +117,25 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
 
   const reset = () => {
     localStorage.removeItem("order");
-    localStorage.removeItem("invoice");
+    localStorage.removeItem("paymentAttempts");
+    localStorage.removeItem("activeMethod");
     setOrderState(null);
-    setInvoiceState(null);
+    setPaymentAttempts({ onchain: null, lightning: null });
+    setActiveMethod("onchain");
   };
 
   return (
     <OrderContext.Provider
       value={{
         order,
-        invoice,
-        setOrder,
-        setInvoice,
-        reset,
+        paymentAttempts,
+        activeMethod,
         bitcoinPrice,
+        setOrder,
+        setPaymentAttempt,
+        setActiveMethod,
         setBitcoinPrice,
+        reset,
       }}
     >
       {children}
@@ -123,33 +150,3 @@ export const useOrder = () => {
   }
   return context;
 };
-export function getAllCountdownStatuses(duration_default = 3): {
-  key: string;
-  is_active: boolean;
-  remaining: number;
-}[] {
-  const keys: string[] = JSON.parse(
-    localStorage.getItem("countdownKeys") || "[]"
-  );
-  const now = Date.now();
-
-  return keys
-    .map((key) => {
-      const stored = localStorage.getItem(key);
-      if (!stored) return { key, is_active: false, remaining: 0 };
-
-      const start_time = parseInt(stored);
-      const elapsed = Math.floor((now - start_time) / 1000);
-      const remaining = duration_default - elapsed;
-
-      if (remaining <= 0) {
-        localStorage.removeItem(key);
-        const updated = keys.filter((k) => k !== key);
-        localStorage.setItem("countdownKeys", JSON.stringify(updated));
-        return { key, is_active: false, remaining: 0 };
-      }
-
-      return { key, is_active: true, remaining };
-    })
-    .filter(({ is_active }) => is_active);
-}
