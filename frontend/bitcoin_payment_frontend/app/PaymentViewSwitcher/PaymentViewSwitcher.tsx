@@ -1,22 +1,37 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group";
 import { LightningPaymentView } from "../LightningPayment/LightningPaymentView";
 import { OnChainPaymentView } from "../OnChainPayment/OnChainPayment";
 import { CircleArrowLeft } from "lucide-react";
-import { useCountdown } from "src/hook/useCountdown";
+import { _patch } from "src/api/axios";
 import { useOrder } from "src/context/InvoiceContext";
+import { useNavigate } from "react-router";
 
 export default function PaymentViewSwitcher() {
   const [paymentView, setPaymentView] = useState<"onchain" | "lightning">(
     "onchain"
   );
-  const { invoice } = useOrder();
+  const navigate = useNavigate();
+  const { order } = useOrder();
+  const handle_expire_order = async () => {
+    await _patch("/orders", {
+      order_code: order?.order_code,
+    }).then((response) => {
+      if (response!.status === 200) {
+        navigate("/");
+      }
+    });
+  };
 
   return (
     <div className="bg-gray-900 rounded-xl pt-6">
       <div className="flex flex-row items-center gap-4 p-6">
-        <CircleArrowLeft color="white" />
+        <CircleArrowLeft
+          color="white"
+          name="Atrás"
+          onClick={handle_expire_order}
+        />
         <h2 className="text-xl text-gray-100 dark:text-white font-semibold">
           Pago con Bitcoin
         </h2>

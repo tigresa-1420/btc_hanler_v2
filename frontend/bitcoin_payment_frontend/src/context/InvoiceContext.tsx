@@ -6,6 +6,8 @@ import React, {
   type ReactNode,
 } from "react";
 
+import { decryptData, encryptData } from "../hook/useEncryption";
+
 interface PaymentAttemptResponse {
   paymentAttempt: {
     payment_attempt_code: string;
@@ -44,95 +46,97 @@ interface Order {
   order_code: string;
   payment_request_code: string;
 }
+
 interface BitcoinPrice {
   price_usd: string;
 }
 
-interface ContextType {
+type PaymentMethod = "onchain" | "lightning";
+
+interface PaymentState {
   order: Order | null;
-  paymentAttempts: {
-    onchain: PaymentAttemptResponse | null;
-    lightning: PaymentAttemptResponse | null;
-  };
-  activeMethod: "onchain" | "lightning";
+  attempts: Record<PaymentMethod, PaymentAttemptResponse | null>;
+  activeMethod: PaymentMethod;
   bitcoinPrice: BitcoinPrice | null;
+}
+
+interface ContextType extends PaymentState {
+  updatePayment: (
+    attempt: PaymentAttemptResponse,
+    method: PaymentMethod
+  ) => void;
   setOrder: (order: Order) => void;
-  setPaymentAttempt: (invoice: PaymentAttemptResponse) => void;
-  setActiveMethod: (method: "onchain" | "lightning") => void;
-  setBitcoinPrice?: (bitcoinPrice: BitcoinPrice) => void;
+  setActiveMethod: (method: PaymentMethod) => void;
+  setBitcoinPrice: (price: BitcoinPrice) => void;
   reset: () => void;
 }
 
 const OrderContext = createContext<ContextType | undefined>(undefined);
 
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
-  const [order, setOrderState] = useState<Order | null>(null);
-  const [paymentAttempts, setPaymentAttempts] = useState<{
-    onchain: PaymentAttemptResponse | null;
-    lightning: PaymentAttemptResponse | null;
-  }>({ onchain: null, lightning: null });
-  const [activeMethod, setActiveMethod] = useState<"onchain" | "lightning">(
-    "onchain"
-  );
-  const [bitcoinPrice, setBitcoinPriceState] = useState<BitcoinPrice | null>(
-    null
-  );
+  const [state, setState] = useState<PaymentState>({
+    order: null,
+    attempts: { onchain: null, lightning: null },
+    activeMethod: "onchain",
+    bitcoinPrice: null,
+  });
 
-  // Al montar, recupera desde localStorage
   useEffect(() => {
-    const storedOrder = localStorage.getItem("order");
-    const storedAttempts = localStorage.getItem("paymentAttempts");
-    const storedActiveMethod = localStorage.getItem("activeMethod");
-
-    if (storedOrder) setOrderState(JSON.parse(storedOrder));
-    if (storedAttempts) setPaymentAttempts(JSON.parse(storedAttempts));
-    if (
-      storedActiveMethod === "lightning" ||
-      storedActiveMethod === "onchain"
-    ) {
-      setActiveMethod(storedActiveMethod);
+    const savedState = localStorage.getItem("paymentState");
+    if (savedState) {
+      try {
+        const decrypted = decryptData(savedState);
+        console.log(decrypted);
+        setState(decrypted);
+      } catch (error) {
+        console.warn("Error al desencriptar paymentState:", error);
+        localStorage.removeItem("paymentState");
+      }
     }
   }, []);
 
-  const setOrder = (order: Order) => {
-    localStorage.setItem("order", JSON.stringify(order));
-    setOrderState(order);
+  useEffect(() => {
+    try {
+      const encrypted = encryptData(state);
+      localStorage.setItem("paymentState", encrypted);
+    } catch (error) {
+      console.error("Error al encriptar paymentState:", error);
+    }
+  }, [state]);
+
+  const updatePayment = (
+    attempt: PaymentAttemptResponse,
+    method: PaymentMethod
+  ) => {
+    setState((prev) => ({
+      ...prev,
+      attempts: { ...prev.attempts, [method]: attempt },
+      activeMethod: method,
+    }));
   };
 
-  const setPaymentAttempt = (attempt: PaymentAttemptResponse) => {
-    const type =
-      attempt.paymentAttempt.payment_method_code === "PM-L"
-        ? "lightning"
-        : "onchain";
-    const updated = { ...paymentAttempts, [type]: attempt };
-    localStorage.setItem("paymentAttempts", JSON.stringify(updated));
-    setPaymentAttempts(updated);
-    setActiveMethod(type);
-    localStorage.setItem("activeMethod", type);
+  const setOrder = (order: Order) => {
+    setState((prev) => ({ ...prev, order }));
+  };
+
+  const setActiveMethod = (method: PaymentMethod) => {
+    setState((prev) => ({ ...prev, activeMethod: method }));
   };
 
   const setBitcoinPrice = (price: BitcoinPrice) => {
-    setBitcoinPriceState(price);
+    setState((prev) => ({ ...prev, bitcoinPrice: price }));
   };
 
   const reset = () => {
-    localStorage.removeItem("order");
-    localStorage.removeItem("paymentAttempts");
-    localStorage.removeItem("activeMethod");
-    setOrderState(null);
-    setPaymentAttempts({ onchain: null, lightning: null });
-    setActiveMethod("onchain");
+    localStorage.removeItem("paymentState");
   };
 
   return (
     <OrderContext.Provider
       value={{
-        order,
-        paymentAttempts,
-        activeMethod,
-        bitcoinPrice,
+        ...state,
+        updatePayment,
         setOrder,
-        setPaymentAttempt,
         setActiveMethod,
         setBitcoinPrice,
         reset,

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect } from "react";
-import axiosInstance from "src/api/axios";
+import React, { useCallback, useEffect, useRef } from "react";
+import { _get } from "src/api/axios";
+import { formatTime } from "src/hook/useFormarTime";
 import { useOrder } from "src/context/InvoiceContext";
 import { useCountdown } from "src/hook/useCountdown";
 
@@ -20,21 +21,24 @@ const BitcoinSummary: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const { setBitcoinPrice, invoice } = useOrder();
+  const { setBitcoinPrice, attempts } = useOrder();
 
+  const invoice = attempts.onchain;
   const duration = invoice?.paymentPreference.invoice_life_time || 300; // Valor por defecto de 5 minutos
-
-  // Memoizar la función de fetch para evitar recreaciones innecesarias
+  const isRefreshingRef = useRef(false);
   const fetchBitcoinData = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+
     setIsLoading(true);
     setError(null);
 
     try {
       console.log("Fetching BTC price...");
-      const response = await axiosInstance.get<SummaryResponse[]>(API_URL);
+      const response = await _get<SummaryResponse[]>(API_URL);
 
-      if (response.status === 200 && response.data.length > 0) {
-        const btcData = response.data.find(
+      if (response!.status === 200 && response!.data.length > 0) {
+        const btcData = response!.data.find(
           (item) => item.id === BTC_ID.toString()
         );
         if (btcData) {
@@ -51,11 +55,12 @@ const BitcoinSummary: React.FC = () => {
       setError("Failed to fetch Bitcoin data");
     } finally {
       setIsLoading(false);
+      isRefreshingRef.current = false;
     }
-  }, [setBitcoinPrice]);
+  }, []);
 
   // Configuración del countdown
-  const { remaining, start, reset, isActive } = useCountdown({
+  const { remaining, start, isActive } = useCountdown({
     duration,
     onExpire: fetchBitcoinData,
     onStart: fetchBitcoinData,
@@ -107,8 +112,7 @@ const BitcoinSummary: React.FC = () => {
                   )}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Se actualizara en: {Math.floor(remaining / 60)}:
-                  {(remaining % 60).toString().padStart(2, "0")}
+                  Se actualizara en: {formatTime(remaining)}
                 </p>
               </>
             ) : (

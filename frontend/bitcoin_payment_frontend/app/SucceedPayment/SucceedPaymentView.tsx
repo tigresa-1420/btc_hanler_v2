@@ -27,13 +27,12 @@ const info = {
 export default function BitcoinPaymentSucceed() {
   const timer1 = useCountdown({
     duration: 100,
-    key: "timer1",
+
     onExpire: () => console.log(" 1 timer expired"),
   });
 
   const timer2 = useCountdown({
     duration: 50,
-    key: "timer2",
     onExpire: () => console.log(" 2 timer expired"),
   });
 

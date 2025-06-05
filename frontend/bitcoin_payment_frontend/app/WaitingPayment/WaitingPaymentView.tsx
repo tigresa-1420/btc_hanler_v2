@@ -2,7 +2,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { CircleCheck, Clock } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
-import { useOrder } from "src/context/invoiceContext";
+import { useOrder } from "src/context/InvoiceContext";
 import axiosInstance from "src/api/axios";
 import React from "react";
 import ClipboardButton from "~/components/buttons/ClipboardButton";

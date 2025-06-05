@@ -3,21 +3,17 @@ import { Button } from "../components/ui/button";
 import CopyButton from "~/components/buttons/CopyButton";
 import { useOrder } from "src/context/InvoiceContext";
 import { useNavigate } from "react-router";
-import axiosInstance from "src/api/axios";
+
 import BitcoinSummary from "~/BitcoinSummaryCard/BitcoinSummary";
 import TimeoutDialog from "~/TimeoutDialog/TimeoutDialog";
 import { useCountdown } from "src/hook/useCountdown";
 import { Skeleton } from "../components/ui/skeleton";
+import { _get, _post, _put } from "src/api/axios";
 
 export function OnChainPaymentView() {
-  const {
-    order,
-    bitcoinPrice,
-    paymentAttempts,
-    setPaymentAttempt,
-    activeMethod,
-  } = useOrder();
-  const invoice = paymentAttempts[activeMethod];
+  const { order, attempts, updatePayment, activeMethod, setActiveMethod } =
+    useOrder();
+  const invoice = attempts.onchain;
 
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -32,17 +28,19 @@ export function OnChainPaymentView() {
   const hasCreatedAttempt = useRef(false);
 
   useEffect(() => {
+    setActiveMethod("onchain");
+    console.log("enter use effect");
     if (
       !hasCreatedAttempt.current &&
-      !paymentAttempts &&
       order?.order_code &&
       order?.payment_request_code
     ) {
       hasCreatedAttempt.current = true;
 
       const handle_create_onchain_payment_attempt = async () => {
+        if (invoice) return; //already created
         try {
-          const response = await axiosInstance.post("/payment-attempts", {
+          const response = await _post("/payment-attempts", {
             order_code: order.order_code,
             payment_request_code: order.payment_request_code,
             payment_method_code: "PM-O", // PM-O para onchain, PM-L para lightning
@@ -50,7 +48,7 @@ export function OnChainPaymentView() {
             network_fee: 2.5,
           });
 
-          setPaymentAttempt(response.data); // <- ahora usamos este
+          updatePayment(response!.data, "onchain");
         } catch (err) {
           console.error("Error creando el intento de pago:", err);
         }
@@ -58,7 +56,7 @@ export function OnChainPaymentView() {
 
       handle_create_onchain_payment_attempt();
     }
-  }, [paymentAttempts, order?.order_code, order?.payment_request_code]);
+  }, [order?.order_code, order?.payment_request_code]);
 
   //effect to start counter on invoice callback
   // Efecto para iniciar el timer una vez que `invoice` está disponible
@@ -116,7 +114,7 @@ export function OnChainPaymentView() {
     payment_attempt_code: string,
     payment_status_code: string
   ) => {
-    await axiosInstance.put(`/payment-attempts/`, {
+    await _put(`/payment-attempts/`, {
       payment_attempt_code,
       payment_status_code,
     });
@@ -221,16 +219,14 @@ export function OnChainPaymentView() {
                 "PS-PR " // Assuming 2 is the ID for "in progress" status
               );
 
-              axiosInstance
-                .get(
-                  `/payment-attempts/${
-                    invoice!.paymentAttempt.payment_attempt_code
-                  }`
-                )
-                .then((res) => {
-                  setInvoice(res.data);
-                  navigate("/btc/waiting_payment");
-                });
+              _get(
+                `/payment-attempts/${
+                  invoice!.paymentAttempt.payment_attempt_code
+                }`
+              ).then((res) => {
+                updatePayment(res!.data, "onchain");
+                navigate("/btc/waiting_payment");
+              });
             }}
           >
             Empezar verificación de pago

@@ -11,7 +11,8 @@ import {
 } from "../components/ui/alert-dialog";
 import { Link } from "react-router";
 import { useOrder } from "src/context/InvoiceContext";
-import axiosInstance from "src/api/axios";
+import { _patch } from "src/api/axios";
+
 interface TimeoutDialogProps {
   open: boolean;
   onCancel: () => void;
@@ -48,15 +49,13 @@ export default function TimeoutDialog({
         <AlertDialogFooter>
           <AlertDialogCancel
             onClick={async () => {
-              await axiosInstance
-                .patch("/orders", {
-                  order_code: order?.order_code,
-                })
-                .then((response) => {
-                  if (response.status === 200) {
-                    onCancel();
-                  }
-                });
+              await _patch("/orders", {
+                order_code: order?.order_code,
+              }).then((response) => {
+                if (response!.status === 200) {
+                  onCancel();
+                }
+              });
             }}
           >
             {cancelText}
