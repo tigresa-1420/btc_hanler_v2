@@ -56,18 +56,33 @@ export function LightningPaymentView() {
     setError(null);
 
     const existingLightning = attempts.lightning;
+
     const previous_attempt_code =
       existingLightning?.paymentAttempt.payment_attempt_code;
 
     try {
       // Crea nuevo intento inmediatamente
+      function safeParseFloat(value: unknown, fallback: number): number {
+        const num = parseFloat(String(value));
+        return isNaN(num) ? fallback : num;
+      }
+
+      const amount_sats = safeParseFloat(
+        existingLightning?.paymentAttempt.amount_sats,
+        1000
+      );
+      const network_fee = safeParseFloat(
+        existingLightning?.paymentAttempt.network_fee,
+        10
+      );
+
       const response = await _post("/payment-attempts", {
         order_code: order?.order_code,
-        payment_request_code: previous_attempt_code,
+        payment_request_code: order?.payment_request_code,
         payment_method_code: "PM-L",
         local_currency_code: "USD",
-        amount_sats: existingLightning?.paymentAttempt.amount_sats ?? 1000,
-        network_fee: existingLightning?.paymentAttempt.network_fee ?? 0,
+        amount_sats: amount_sats,
+        network_fee: network_fee,
       });
 
       if (response!.status === 201) {

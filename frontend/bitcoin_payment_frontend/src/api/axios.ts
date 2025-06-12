@@ -1,10 +1,10 @@
 import axios from "axios";
-import { Mutex } from "./mutexHelper";
 import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import { Mutex } from "./mutexHelper";
+import { decryptData, encryptData } from "src/hook/useEncryption";
 
-const BASE_URL = "http://localhost:3000/api/";
-const whiteList = ["/user"];
 
+const BASE_URL = "http://localhost:3000/api";
 const mutex = new Mutex();
 
 const apiClient = axios.create({
@@ -12,53 +12,64 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const _get = async <T = any>(
-  url: string,
-  config: AxiosRequestConfig = {}
-): Promise<AxiosResponse<T> | undefined> => {
-  const unlock = await mutex.lock(url);
-  if (unlock === false) return;
+type EncryptedResponse = {
+  data: string;
+  iv: string;
+};
 
+const _get = async <T = any>(url: string, config: AxiosRequestConfig = {}): Promise<AxiosResponse<T> | undefined> => {
+  const isLockAcquired = await mutex.lock(url);
+  if (!isLockAcquired) return;
   try {
     const response = await apiClient.get<T>(url, config);
     return response;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) {
-      console.error("API error:", error.response?.data || error.message);
-    } else {
-      console.error("Unexpected error:", error);
-    }
+  } catch (error) {
+    console.error(error);
   } finally {
-    if (typeof unlock === "function") unlock();
+    mutex.unlock(url);
   }
 };
 
-var count = 0;
 const _post = async <T = any>(
   url: string,
-  data: any = {},
+  data: any,
   config: AxiosRequestConfig = {}
 ): Promise<AxiosResponse<T> | undefined> => {
-  const unlock = await mutex.lock(url);
-  if (!unlock) {
-    console.log("locked");
-  } else {
-    console.log("unlocked");
-  }
-  if (unlock === false) return;
-  count = count + 1;
+  const isLockAcquired = await mutex.lock(url);
+  if (!isLockAcquired) return;
 
   try {
-    const response = await apiClient.post<T>(url, data, config);
-    return response;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) {
-      console.error("API error:", error.response?.data || error.message);
-    } else {
-      console.error("Unexpected error:", error);
+    const encrypted = encryptData(data);
+    const response = await apiClient.post(url, encrypted, config);
+
+    if (response.data?.data && response.data?.iv) {
+      const decrypted = decryptData(response.data.data, response.data.iv) as T;
+
+
+      response.data = decrypted;
+
+      return response;
     }
+
+    return response;
+  } catch (error) {
+    console.error(error);
   } finally {
-    if (typeof unlock === "function") unlock();
+    mutex.unlock(url);
+  }
+};
+
+
+const _delete = async <T = any>(url: string, config: AxiosRequestConfig = {}): Promise<AxiosResponse<T> | undefined> => {
+  const isLockAcquired = await mutex.lock(url);
+  if (!isLockAcquired) return;
+  try {
+    const response = await apiClient.delete<T>(url, config);
+    return response;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    mutex.unlock(url);
   }
 };
 
@@ -67,33 +78,51 @@ const _put = async <T = any>(
   data: any = {},
   config: AxiosRequestConfig = {}
 ): Promise<AxiosResponse<T> | undefined> => {
-  const unlock = await mutex.lock(url);
-  if (unlock === false) return;
-
+  const isLockAcquired = await mutex.lock(url);
+  if (!isLockAcquired) return;
   try {
-    const response = await apiClient.put<T>(url, data, config);
-    return response;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) {
-      console.error("API error:", error.response?.data || error.message);
-    } else {
-      console.error("Unexpected error:", error);
+    const encrypted = encryptData(data);
+
+    const response = await apiClient.put(url, encrypted, config);
+
+    if (response.data?.data && response.data?.iv) {
+      const decrypted = decryptData(response.data.data, response.data.iv) as T;
+
+
+      response.data = decrypted;
+
+      return response;
     }
+    return response;
+  } catch (error) {
+    console.error(error);
   } finally {
-    if (typeof unlock === "function") unlock();
+    mutex.unlock(url);
   }
 };
+
 
 const _patch = async <T = any>(
   url: string,
   data: any = {},
   config: AxiosRequestConfig = {}
 ): Promise<AxiosResponse<T> | undefined> => {
-  const unlock = await mutex.lock(url);
-  if (unlock === false) return;
+  const isLockAcquired = await mutex.lock(url);
+  if (!isLockAcquired) return
 
   try {
-    const response = await apiClient.patch<T>(url, data, config);
+    const encrypted = encryptData(data);
+
+    const response = await apiClient.patch(url, encrypted, config);
+
+    if (response.data?.data && response.data?.iv) {
+      const decrypted = decryptData(response.data.data, response.data.iv) as T;
+
+
+      response.data = decrypted;
+
+      return response;
+    }
     return response;
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
@@ -102,29 +131,7 @@ const _patch = async <T = any>(
       console.error("Unexpected error:", error);
     }
   } finally {
-    if (typeof unlock === "function") unlock();
+    mutex.unlock(url)
   }
 };
-
-const _delete = async <T = any>(
-  url: string,
-  config: AxiosRequestConfig = {}
-): Promise<AxiosResponse<T> | undefined> => {
-  const unlock = await mutex.lock(url);
-  if (unlock === false) return;
-
-  try {
-    const response = await apiClient.delete<T>(url, config);
-    return response;
-  } catch (error: any) {
-    if (axios.isAxiosError(error)) {
-      console.error("API error:", error.response?.data || error.message);
-    } else {
-      console.error("Unexpected error:", error);
-    }
-  } finally {
-    if (typeof unlock === "function") unlock();
-  }
-};
-
-export { _get, _post, _put, _delete, _patch };
+export { _get, _post, _delete, _put, _patch };

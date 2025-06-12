@@ -7,30 +7,47 @@ export class Mutex {
     this.locks = new Map();
   }
 
-  async lock(key: string): Promise<boolean | (() => void)> {
+  async lock(key: string): Promise<(() => void) | true> {
     if (this.whiteList.has(key)) {
       return true;
     }
 
-    let release!: () => void;
+    let resolveFunc!: () => void;
     const newLock = new Promise<void>((resolve) => {
-      release = resolve;
+      resolveFunc = resolve;
     });
 
-    const currentLock = this.locks.get(key);
-    if (currentLock) {
-      await currentLock; // Espera a que se libere
+    const existingLock = this.locks.get(key);
+    if (existingLock) {
+      await existingLock;
     }
 
     this.locks.set(key, newLock);
+
     return () => {
-      release();
+      resolveFunc();
       this.locks.delete(key);
     };
   }
 
+  async tryLock(key: string): Promise<boolean> {
+    if (this.whiteList.has(key)) {
+      return true;
+    }
+
+    if (this.locks.has(key)) {
+      return false;
+    }
+
+    this.locks.set(key, Promise.resolve());
+    return true;
+  }
+
   unlock(key: string): void {
-    if (this.whiteList.has(key)) return;
+    if (this.whiteList.has(key)) {
+      return;
+    }
+
     this.locks.delete(key);
   }
 }

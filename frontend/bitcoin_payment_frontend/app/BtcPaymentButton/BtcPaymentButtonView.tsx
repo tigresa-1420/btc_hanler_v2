@@ -7,10 +7,6 @@ export function BitcoinPaymentButton() {
   const [isLoading, setIsLoading] = React.useState(false);
   const loadingText = "Cargando...";
 
-  useEffect(() => {
-    // This effect runs only once when the component mounts
-    console.log("BitcoinPaymentButton mounted");
-  }, []);
   const [isHovered, setIsHovered] = React.useState(false);
   const navigate = useNavigate();
   const { setOrder, reset } = useOrder();
@@ -26,13 +22,14 @@ export function BitcoinPaymentButton() {
         amount_fiat: 20,
         local_currency_code: "USD",
       });
-
+      console.log(response);
       setOrder({
         order_code: response!.data.created_order.order_code,
         payment_request_code:
           response!.data.created_payment_request.payment_request_code,
       });
-      if (response!.status === 201) {
+      console.log(response!.status);
+      if (response?.status === 201) {
         navigate("/btc/payment");
       }
     } finally {

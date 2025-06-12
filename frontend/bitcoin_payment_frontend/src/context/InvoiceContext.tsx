@@ -6,7 +6,12 @@ import React, {
   type ReactNode,
 } from "react";
 
-import { decryptData, encryptData } from "../hook/useEncryption";
+import {
+  decryptClient,
+  decryptData,
+  encryptClient,
+  encryptData,
+} from "../hook/useEncryption";
 
 interface PaymentAttemptResponse {
   paymentAttempt: {
@@ -68,6 +73,7 @@ interface ContextType extends PaymentState {
   setOrder: (order: Order) => void;
   setActiveMethod: (method: PaymentMethod) => void;
   setBitcoinPrice: (price: BitcoinPrice) => void;
+
   reset: () => void;
 }
 
@@ -85,7 +91,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     const savedState = localStorage.getItem("paymentState");
     if (savedState) {
       try {
-        const decrypted = decryptData(savedState);
+        const decrypted = decryptClient(savedState);
         console.log(decrypted);
         setState(decrypted);
       } catch (error) {
@@ -97,7 +103,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      const encrypted = encryptData(state);
+      const encrypted = encryptClient(state);
       localStorage.setItem("paymentState", encrypted);
     } catch (error) {
       console.error("Error al encriptar paymentState:", error);

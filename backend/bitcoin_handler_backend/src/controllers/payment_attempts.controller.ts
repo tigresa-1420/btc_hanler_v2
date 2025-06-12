@@ -4,6 +4,7 @@ import {
   update_payment_attempt_status,
   get_payment_attempt_by_id,
 } from "../services/payment_attempt.service";
+import { encrypt } from "../util/useEncryption";
 
 export const create_lightning_payment_attempt = async (
   req: Request,
@@ -11,12 +12,14 @@ export const create_lightning_payment_attempt = async (
 ) => {
   try {
     const new_order = await create_new_payment_attempt_service(req.body);
-    res.status(201).json(new_order);
+    const encrypted_response = encrypt(JSON.stringify(new_order));
+    res.status(201).json(encrypted_response);
   } catch (error) {
     console.error("Error al crear orden:", error);
-    res
-      .status(500)
-      .json({ message: "Error al crear la orden con su Payment_request" });
+    const encrypted_error = encrypt(JSON.stringify({
+      message: "Error al crear la orden con su Payment_request"
+    }));
+    res.status(500).json(encrypted_error);
   }
 };
 
@@ -28,10 +31,14 @@ export const update_payment_attempt_status_controller = async (
     const updated_payment_attempt = await update_payment_attempt_status(
       req.body
     );
-    res.status(200).json(updated_payment_attempt);
+    const encrypted_response = encrypt(JSON.stringify(updated_payment_attempt));
+    res.status(201).json(encrypted_response);
   } catch (error) {
-    console.error("Error al actualizar el estado del intento de pago:", error);
-    res.status(500).json({ message: "Error al actualizar el estado" });
+    console.error("Error al crear orden:", error);
+    const encrypted_error = encrypt(JSON.stringify({
+      message: "Error al crear la orden con su Payment_request"
+    }));
+    res.status(500).json(encrypted_error);
   }
 };
 

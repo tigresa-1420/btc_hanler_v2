@@ -1,6 +1,4 @@
-// utils/getIdByCode.ts
-import { Prisma, PrismaClient } from "@prisma/client";
-
+import { Prisma } from "@prisma/client";
 type TxClient = Prisma.TransactionClient;
 
 interface GetIdByCodeParams<
@@ -34,12 +32,6 @@ export async function get_id_by_code<
       [idField]: true,
     },
   });
-
-  if (!result) {
-    throw new Error(
-      `No ${String(model)} found with ${codeField} = ${codeValue}`
-    );
-  }
 
   return result[idField];
 }

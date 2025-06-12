@@ -38,7 +38,7 @@ export function OnChainPaymentView() {
       hasCreatedAttempt.current = true;
 
       const handle_create_onchain_payment_attempt = async () => {
-        if (invoice) return; //already created
+       // if (invoice) return; //already created
         try {
           const response = await _post("/payment-attempts", {
             order_code: order.order_code,
